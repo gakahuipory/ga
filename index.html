@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖途論戰 Graph Rivals</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Firebase SDK v8 -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body>
+    <div id="game-container">
+        <h1> Graph Rivals </h1>
+        <p style="text-align: center; font-size: 0.8rem; margin-top: -5px; margin-bottom: 20px; color: #3a6ea5; font-style: italic; opacity: 0.9;"> 遊戲人生,數學人生 </p>
+        <div id="login-section">
+            <h2>請輸入房間號碼</h2>
+            <div>
+                <label>房間號碼：</label>
+                <input type="text" id="room-input" placeholder="例如: myroom123">
+                <button id="create-btn">建立房間</button>
+                <button id="join-btn">加入房間</button>
+            </div>
+            <div id="player-id-info"></div>
+        </div>
+
+        <!-- 等待房間 -->
+        <div id="waiting-room" style="display: none;">
+            <div id="waiting-header">
+                房間號: <span id="waiting-room-number"></span>
+                <button id="waiting-exit-btn">退出房間</button>
+            </div>
+            <h2>等待玩家加入⋯</h2>
+            <div id="player-list">
+                <div class="player-waiting" id="waiting-player1">玩家1 <span class="waiting-status" id="player1-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player2">玩家2 <span class="waiting-status" id="player2-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player3">玩家3 <span class="waiting-status" id="player3-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player4">玩家4 <span class="waiting-status" id="player4-status">❌</span></div>
+            </div>
+            <div id="waiting-start-area">
+                <button id="start-game-btn" style="display: none;">開始遊戲</button>
+            </div>
+            <p id="waiting-hint">等待房主開始遊戲⋯</p>
+        </div>
+
+        <!-- 遊戲主畫面 -->
+        <div id="game-play-section" style="display: none;">
+            <div id="room-info-line">
+                房間號: <span id="display-room-number"></span> | <span id="room-status">等待玩家加入...</span>
+                <span id="current-player-label" style="margin-left: 10px; font-weight: bold;"></span>
+                <button id="exit-room-btn">退出房間</button>
+            </div>
+
+            <div id="game-header">
+                <div id="turn-indicator">等待開始</div>
+                <div id="dice-area" style="display: none;">
+                    <span>🎲 骰子:</span>
+                    <span id="dice1" class="dice">0</span>
+                    <span id="dice2" class="dice">0</span>
+                    <span id="dice3" class="dice">0</span>
+                    <span> 總和: <span id="dice-sum">0</span></span>
+                    <button id="roll-dice-btn" disabled>擲骰(回合自動)</button>
+                </div>
+                <div id="skill-area" style="opacity: 0.5; pointer-events: none;">
+                    <div class="skill-card">🔁 換線 (0)</div>
+                    <div class="skill-card">🎲 重骰 (0)</div>
+                    <div class="skill-card">✨ 特殊 (0)</div>
+                </div>
+            </div>
+
+            <div id="players-info">
+                <div id="player1-info" class="player-info">👤 玩家1 <span class="player-start" id="p1-start"></span></div>
+                <div id="player2-info" class="player-info">👤 玩家2 <span class="player-start" id="p2-start"></span></div>
+                <div id="player3-info" class="player-info">👤 玩家3 <span class="player-start" id="p3-start"></span></div>
+                <div id="player4-info" class="player-info">👤 玩家4 <span class="player-start" id="p4-start"></span></div>
+            </div>
+
+            <div id="map-container">
+                <canvas id="game-canvas" width="900" height="650"></canvas> <!-- 稍微加大畫布 -->
+            </div>
+
+            <div id="control-panel">
+                <!-- 起點選擇區 (遊戲開始前顯示) -->
+                <div id="start-point-selection" style="display: none;">
+                    <p>請選擇你的起點 (A~M)</p>
+                    <div class="node-buttons">
+                        <!-- 動態生成 A~M 按鈕 -->
+                    </div>
+                </div>
+
+                <!-- 邊選擇區 (遊戲進行中顯示) -->
+                <div id="edge-selection" style="display: none;">
+                    <p>請選擇要佔領的邊：</p>
+                    <div id="edge-buttons-container" class="edge-buttons">
+                        <!-- 動態生成所有空邊按鈕 -->
+                    </div>
+                </div>
+
+                <div id="game-status"></div>
+                <button id="reset-game-btn" style="display: none;">重新開始</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自訂 JavaScript -->
+    <script src="firebase-config.js"></script>
+    <script src="script.js"></script>
+    <!-- 連線檢測 -->
+    <script>
+        setTimeout(() => {
+            try {
+                if (typeof firebase === 'undefined') {
+                    console.error('❌ Firebase SDK 未載入！');
+                } else if (!firebase.apps.length) {
+                    console.error('❌ Firebase 未初始化！請檢查 firebase-config.js');
+                } else {
+                    console.log('✅ Firebase 初始化成功');
+                    firebase.database().ref('connection_test').set({ timestamp: Date.now() })
+                        .then(() => console.log('✅ 資料庫寫入成功'))
+                        .catch(err => console.error('❌ 資料庫寫入失敗：', err));
+                }
+            } catch (e) {
+                console.error('❌ 檢測例外：', e);
+            }
+        }, 500);
+    </script>
+</body>
+</html>
