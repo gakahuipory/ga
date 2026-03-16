@@ -14,14 +14,15 @@
         <h1> Graph Rivals </h1>
         <p style="text-align: center; font-size: 0.8rem; margin-top: -5px; margin-bottom: 20px; color: #3a6ea5; font-style: italic; opacity: 0.9;"> 遊戲人生,數學人生 </p>
         <div id="login-section">
-            <h2>請輸入房間號碼</h2>
+            <h2>⚔️ 四人對戰 · 即時連線</h2>
             <div>
-                <label>房間號碼：</label>
-                <input type="text" id="room-input" placeholder="例如: myroom123">
+                <label>房間號碼 (3-7位數字)：</label>
+                <input type="text" id="room-input" placeholder="例如: 1234567" pattern="\d{3,7}" title="請輸入3到7位數字">
                 <button id="create-btn">建立房間</button>
                 <button id="join-btn">加入房間</button>
             </div>
             <div id="player-id-info"></div>
+            <div id="room-error-message" style="color: red; margin-top: 10px;"></div>
         </div>
 
         <!-- 等待房間 -->
@@ -76,7 +77,7 @@
             </div>
 
             <div id="map-container">
-                <canvas id="game-canvas" width="900" height="650"></canvas> <!-- 稍微加大畫布 -->
+                <canvas id="game-canvas" width="900" height="650"></canvas>
             </div>
 
             <div id="control-panel">
@@ -92,20 +93,42 @@
                 <div id="edge-selection" style="display: none;">
                     <p>請選擇要佔領的邊：</p>
                     <div id="edge-buttons-container" class="edge-buttons">
-                        <!-- 動態生成所有空邊按鈕 -->
+                        <!-- 動態生成可佔邊按鈕，按鈕上會顯示分數 (佔領後) -->
                     </div>
+                </div>
+
+                <!-- 弱勢方申請區 (當玩家無邊可佔時顯示) -->
+                <div id="weak-player-section" style="display: none;">
+                    <p>你已無邊可佔，成為弱勢方。可向相鄰的強勢方申請佔邊：</p>
+                    <div id="claim-buttons-container" class="edge-buttons">
+                        <!-- 動態生成可申請的邊 (強勢方且相鄰) -->
+                    </div>
+                    <p id="claim-info"></p>
                 </div>
 
                 <div id="game-status"></div>
                 <button id="reset-game-btn" style="display: none;">重新開始</button>
             </div>
         </div>
+
+        <!-- 結算頁面 (遊戲結束後顯示，替代主畫面) -->
+        <div id="result-section" style="display: none;">
+            <h2>遊戲結束！</h2>
+            <div id="result-players-info">
+                <!-- 顯示各玩家總分、邊數 -->
+            </div>
+            <div id="result-graph-area">
+                <p>你的佔邊圖形：</p>
+                <canvas id="result-canvas" width="900" height="650" style="background: #2f3640; border-radius: 30px;"></canvas>
+            </div>
+            <button id="back-to-lobby-btn">返回大廳</button>
+        </div>
     </div>
 
-    <!-- 自訂 JavaScript -->
+    <!-- 自訂 JavaScript (順序重要) -->
     <script src="firebase-config.js"></script>
     <script src="script.js"></script>
-    <!-- 連線檢測 -->
+    <!-- 連線檢測 (可選) -->
     <script>
         setTimeout(() => {
             try {
