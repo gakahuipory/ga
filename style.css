@@ -75,6 +75,12 @@ h1, h2 {
     transform: scale(0.98);
 }
 
+#room-error-message {
+    color: red;
+    margin-top: 10px;
+    text-align: center;
+}
+
 /* ---------- 等待房間 ---------- */
 #waiting-room {
     background: #bdc3c7;
@@ -295,7 +301,7 @@ h1, h2 {
     height: auto;
     background: #2f3640;
     border-radius: 30px;
-    cursor: default; /* 佔邊改用按鈕，畫布不用點擊 */
+    cursor: default;
 }
 
 /* 控制面板 */
@@ -385,6 +391,47 @@ h1, h2 {
     opacity: 0.6;
 }
 
+/* 弱勢方申請區 */
+#weak-player-section {
+    margin: 15px 0;
+    display: none;
+    background: #fff3cd;
+    padding: 15px;
+    border-radius: 20px;
+    border: 1px solid #ffc107;
+}
+
+#weak-player-section p {
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    color: #856404;
+}
+
+.claim-button {
+    padding: 10px 16px;
+    background: #ffc107;
+    color: #212529;
+    border: none;
+    border-radius: 30px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.1s;
+    font-size: 1rem;
+    min-width: 120px;
+    margin: 5px;
+}
+
+.claim-button:hover {
+    background: #e0a800;
+    transform: scale(0.98);
+}
+
+#claim-info {
+    margin-top: 10px;
+    font-style: italic;
+    color: #856404;
+}
+
 /* 遊戲狀態顯示 */
 #game-status {
     font-size: 1.2rem;
@@ -415,6 +462,59 @@ h1, h2 {
     background: #c0392b;
 }
 
+/* 結算頁面 */
+#result-section {
+    background: #bdc3c7;
+    border-radius: 30px;
+    padding: 20px;
+    box-shadow: inset 0 0 10px #7f8c8d;
+    text-align: center;
+}
+
+#result-players-info {
+    margin: 20px 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    gap: 10px;
+}
+
+.result-player {
+    background: #2c3e50;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 40px;
+    font-weight: 600;
+    min-width: 150px;
+}
+
+#result-graph-area {
+    margin: 20px 0;
+}
+
+#result-canvas {
+    width: 100%;
+    height: auto;
+    background: #2f3640;
+    border-radius: 30px;
+}
+
+#back-to-lobby-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 50px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1.1rem;
+    margin-top: 10px;
+}
+
+#back-to-lobby-btn:hover {
+    background: #2980b9;
+}
+
 /* 響應式調整 */
 @media (max-width: 700px) {
     .edge-buttons {
@@ -433,5 +533,9 @@ h1, h2 {
         width: 45px;
         height: 45px;
         font-size: 1rem;
+    }
+    .result-player {
+        min-width: 120px;
+        font-size: 0.9rem;
     }
 }
