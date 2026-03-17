@@ -88,7 +88,9 @@ AB, AC, AE, AH, BC, BD, BE, BF, CD, DE, DF, EF, EH, EK, FH, FM, GI, GK, HI, HJ, 
 - **前端**：HTML5、CSS3、JavaScript（原生）
 - **後端**：Firebase Realtime Database（即時資料同步）
 - **工具**：Live Server 或 Python HTTP Server（本地開發）
+---
 
+****特別感謝人工智能平台Deepseek對此遊戲項目的大力支持****
 ---
 
 ## 📁 檔案結構
