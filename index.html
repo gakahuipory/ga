@@ -5,14 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖途論戰 Graph Rivals</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Firebase SDK v8 -->
+    <!-- Firebase SDK v8 (不需要 auth) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body>
     <div id="game-container">
-        <h1> Graph Rivals </h1>
-        <p style="text-align: center; font-size: 0.8rem; margin-top: -5px; margin-bottom: 20px; color: #3a6ea5; font-style: italic; opacity: 0.9;"> 遊戲人生,數學人生 </p>
+        <h1>圖途論戰 Graph Rivals</h1>
         <div id="login-section">
             <h2>⚔️ 四人對戰 · 即時連線</h2>
             <div>
@@ -33,10 +32,10 @@
             </div>
             <h2>等待玩家加入⋯</h2>
             <div id="player-list">
-                <div class="player-waiting" id="waiting-player1">玩家1 <span class="waiting-status" id="player1-status">❌</span></div>
-                <div class="player-waiting" id="waiting-player2">玩家2 <span class="waiting-status" id="player2-status">❌</span></div>
-                <div class="player-waiting" id="waiting-player3">玩家3 <span class="waiting-status" id="player3-status">❌</span></div>
-                <div class="player-waiting" id="waiting-player4">玩家4 <span class="waiting-status" id="player4-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player1">藍隊 <span class="waiting-status" id="player1-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player2">紅隊 <span class="waiting-status" id="player2-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player3">綠隊 <span class="waiting-status" id="player3-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player4">黃隊 <span class="waiting-status" id="player4-status">❌</span></div>
             </div>
             <div id="waiting-start-area">
                 <button id="start-game-btn" style="display: none;">開始遊戲</button>
@@ -47,7 +46,7 @@
         <!-- 遊戲主畫面 -->
         <div id="game-play-section" style="display: none;">
             <div id="room-info-line">
-                房間號: <span id="display-room-number"></span> | <span id="room-status">等待玩家加入...</span>
+                房間號: <span id="display-room-number"></span> | <span id="room-status">等待隊伍加入...</span>
                 <span id="current-player-label" style="margin-left: 10px; font-weight: bold;"></span>
                 <button id="exit-room-btn">退出房間</button>
             </div>
@@ -69,11 +68,12 @@
                 </div>
             </div>
 
+            <!-- 四位玩家資訊 -->
             <div id="players-info">
-                <div id="player1-info" class="player-info">👤 玩家1 <span class="player-start" id="p1-start"></span></div>
-                <div id="player2-info" class="player-info">👤 玩家2 <span class="player-start" id="p2-start"></span></div>
-                <div id="player3-info" class="player-info">👤 玩家3 <span class="player-start" id="p3-start"></span></div>
-                <div id="player4-info" class="player-info">👤 玩家4 <span class="player-start" id="p4-start"></span></div>
+                <div id="player1-info" class="player-info"><span class="team-name">藍隊</span> <span class="player-start" id="p1-start"></span></div>
+                <div id="player2-info" class="player-info"><span class="team-name">紅隊</span> <span class="player-start" id="p2-start"></span></div>
+                <div id="player3-info" class="player-info"><span class="team-name">綠隊</span> <span class="player-start" id="p3-start"></span></div>
+                <div id="player4-info" class="player-info"><span class="team-name">黃隊</span> <span class="player-start" id="p4-start"></span></div>
             </div>
 
             <div id="map-container">
@@ -81,7 +81,7 @@
             </div>
 
             <div id="control-panel">
-                <!-- 起點選擇區 (遊戲開始前顯示) -->
+                <!-- 起點選擇區 -->
                 <div id="start-point-selection" style="display: none;">
                     <p>請選擇你的起點 (A~M)</p>
                     <div class="node-buttons">
@@ -89,19 +89,19 @@
                     </div>
                 </div>
 
-                <!-- 邊選擇區 (遊戲進行中顯示) -->
+                <!-- 邊選擇區 -->
                 <div id="edge-selection" style="display: none;">
                     <p>請選擇要佔領的邊：</p>
                     <div id="edge-buttons-container" class="edge-buttons">
-                        <!-- 動態生成可佔邊按鈕，按鈕上會顯示分數 (佔領後) -->
+                        <!-- 動態生成可佔邊按鈕 -->
                     </div>
                 </div>
 
-                <!-- 弱勢方申請區 (當玩家無邊可佔時顯示) -->
+                <!-- 弱勢方申請區 -->
                 <div id="weak-player-section" style="display: none;">
                     <p>你已無邊可佔，成為弱勢方。可向相鄰的強勢方申請佔邊：</p>
                     <div id="claim-buttons-container" class="edge-buttons">
-                        <!-- 動態生成可申請的邊 (強勢方且相鄰) -->
+                        <!-- 動態生成可申請的邊 -->
                     </div>
                     <p id="claim-info"></p>
                 </div>
@@ -111,15 +111,15 @@
             </div>
         </div>
 
-        <!-- 結算頁面 (遊戲結束後顯示，替代主畫面) -->
+        <!-- 結算頁面 -->
         <div id="result-section" style="display: none;">
             <h2>遊戲結束！</h2>
             <div id="result-players-info">
-                <!-- 顯示各玩家總分、邊數 -->
+                <!-- 顯示各隊伍總分、邊數 -->
             </div>
             <div id="result-graph-area">
                 <p>你的佔邊圖形：</p>
-                <canvas id="result-canvas" width="900" height="650" style="background: #2f3640; border-radius: 30px;"></canvas>
+                <canvas id="result-canvas" width="900" height="650"></canvas>
             </div>
             <button id="back-to-lobby-btn">返回大廳</button>
         </div>
