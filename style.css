@@ -7,7 +7,7 @@
 }
 
 body {
-    background: linear-gradient(145deg, #2b3a4a 0%, #1d2a35 100%);
+    background: linear-gradient(145deg, #e0e5ec 0%, #f0f4f8 100%);
     min-height: 100vh;
     display: flex;
     justify-content: center;
@@ -17,9 +17,10 @@ body {
 #game-container {
     max-width: 1100px;
     width: 95%;
-    background: #ecf0f3;
+    background: #ffffffdd;
+    backdrop-filter: blur(4px);
     border-radius: 40px;
-    box-shadow: 20px 20px 30px rgba(0,0,0,0.5), -10px -10px 20px rgba(255,255,255,0.1);
+    box-shadow: 20px 20px 30px rgba(0,0,0,0.1), -10px -10px 20px rgba(255,255,255,0.7);
     padding: 25px;
     color: #2c3e50;
 }
@@ -32,11 +33,11 @@ h1, h2 {
 
 /* ---------- 登入區 ---------- */
 #login-section {
-    background: #d1d8e0;
+    background: #f8fafc;
     padding: 20px;
     border-radius: 30px;
     margin-bottom: 20px;
-    box-shadow: inset 2px 2px 5px #a5b1c2, inset -3px -3px 7px #ffffff;
+    box-shadow: inset 2px 2px 5px #b0bec5, inset -3px -3px 7px #ffffff;
 }
 
 #login-section div {
@@ -57,6 +58,10 @@ h1, h2 {
     flex: 2 1 200px;
 }
 
+#login-section input:invalid {
+    border: 2px solid #e74c3c;
+}
+
 #login-section button {
     padding: 12px 25px;
     border: none;
@@ -65,7 +70,7 @@ h1, h2 {
     color: white;
     font-weight: bold;
     cursor: pointer;
-    box-shadow: 5px 5px 10px #1e272e, -3px -3px 8px #74b9ff;
+    box-shadow: 5px 5px 10px #a5b1c2, -3px -3px 8px #ffffff;
     transition: 0.1s;
     flex: 1 1 100px;
 }
@@ -76,18 +81,18 @@ h1, h2 {
 }
 
 #room-error-message {
-    color: red;
+    color: #e74c3c;
     margin-top: 10px;
-    text-align: center;
+    font-weight: bold;
 }
 
 /* ---------- 等待房間 ---------- */
 #waiting-room {
-    background: #bdc3c7;
+    background: #f8fafc;
     border-radius: 30px;
     padding: 20px;
     text-align: center;
-    box-shadow: inset 0 0 10px #7f8c8d;
+    box-shadow: inset 0 0 10px #b0bec5;
 }
 
 #waiting-header {
@@ -125,7 +130,14 @@ h1, h2 {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-left: 8px solid;
 }
+
+/* 等待房間各隊伍邊框顏色 */
+#waiting-player1 { border-left-color: #3498db; }
+#waiting-player2 { border-left-color: #e74c3c; }
+#waiting-player3 { border-left-color: #2ecc71; }
+#waiting-player4 { border-left-color: #f39c12; }
 
 .player-waiting.current-player {
     border: 3px solid #f1c40f;
@@ -158,10 +170,10 @@ h1, h2 {
 
 /* ---------- 遊戲主畫面 ---------- */
 #game-play-section {
-    background: #bdc3c7;
+    background: #f8fafc;
     border-radius: 30px;
     padding: 20px;
-    box-shadow: inset 0 0 10px #7f8c8d;
+    box-shadow: inset 0 0 10px #b0bec5;
 }
 
 #room-info-line {
@@ -256,7 +268,7 @@ h1, h2 {
     font-size: 0.9rem;
 }
 
-/* 玩家資訊區 (四人) */
+/* 玩家資訊區 */
 #players-info {
     display: flex;
     justify-content: space-around;
@@ -274,7 +286,14 @@ h1, h2 {
     min-width: 140px;
     text-align: center;
     transition: 0.2s;
+    border-left: 8px solid;
 }
+
+/* 各隊伍邊框顏色 */
+#player1-info { border-left-color: #3498db; }
+#player2-info { border-left-color: #e74c3c; }
+#player3-info { border-left-color: #2ecc71; }
+#player4-info { border-left-color: #f39c12; }
 
 .player-info.current-player {
     border: 3px solid #f1c40f;
@@ -290,16 +309,17 @@ h1, h2 {
 /* 地圖容器 */
 #map-container {
     text-align: center;
-    background: #1e272e;
+    background: #e0e5ec;
     border-radius: 40px;
     padding: 15px;
     margin: 15px 0;
+    box-shadow: inset 0 0 15px #a5b1c2;
 }
 
 #game-canvas {
     width: 100%;
     height: auto;
-    background: #2f3640;
+    background: #f5f7fa;
     border-radius: 30px;
     cursor: default;
 }
@@ -312,7 +332,7 @@ h1, h2 {
     text-align: center;
 }
 
-/* 起點按鈕 (A~M) */
+/* 起點按鈕 */
 #start-point-selection {
     margin: 15px 0;
 }
@@ -334,7 +354,7 @@ h1, h2 {
     color: white;
     font-size: 1.3rem;
     font-weight: bold;
-    box-shadow: 4px 4px 8px #7f5e3b;
+    box-shadow: 4px 4px 8px #b0a392;
     cursor: pointer;
     transition: 0.1s;
 }
@@ -347,7 +367,6 @@ h1, h2 {
 /* 邊選擇區 */
 #edge-selection {
     margin: 15px 0;
-    display: none; /* 預設隱藏，由 JS 控制 */
 }
 
 #edge-selection p {
@@ -394,11 +413,10 @@ h1, h2 {
 /* 弱勢方申請區 */
 #weak-player-section {
     margin: 15px 0;
-    display: none;
-    background: #fff3cd;
     padding: 15px;
-    border-radius: 20px;
-    border: 1px solid #ffc107;
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    border-radius: 30px;
 }
 
 #weak-player-section p {
@@ -407,8 +425,16 @@ h1, h2 {
     color: #856404;
 }
 
+#claim-buttons-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin: 15px 0;
+}
+
 .claim-button {
-    padding: 10px 16px;
+    padding: 12px 20px;
     background: #ffc107;
     color: #212529;
     border: none;
@@ -417,8 +443,6 @@ h1, h2 {
     cursor: pointer;
     transition: 0.1s;
     font-size: 1rem;
-    min-width: 120px;
-    margin: 5px;
 }
 
 .claim-button:hover {
@@ -427,9 +451,10 @@ h1, h2 {
 }
 
 #claim-info {
-    margin-top: 10px;
-    font-style: italic;
+    font-size: 1rem;
     color: #856404;
+    font-style: italic;
+    margin-top: 10px;
 }
 
 /* 遊戲狀態顯示 */
@@ -442,7 +467,7 @@ h1, h2 {
     padding: 15px;
     border-radius: 20px;
     text-align: left;
-    border: 1px solid #bdc3c7;
+    border: 1px solid #b0bec5;
 }
 
 /* 重置按鈕 */
@@ -462,40 +487,61 @@ h1, h2 {
     background: #c0392b;
 }
 
-/* 結算頁面 */
+/* ---------- 結算頁面 ---------- */
 #result-section {
-    background: #bdc3c7;
+    background: #f8fafc;
     border-radius: 30px;
     padding: 20px;
-    box-shadow: inset 0 0 10px #7f8c8d;
-    text-align: center;
+    box-shadow: inset 0 0 10px #b0bec5;
+}
+
+#result-section h2 {
+    color: #1e3799;
+    margin-bottom: 20px;
 }
 
 #result-players-info {
-    margin: 20px 0;
     display: flex;
     flex-wrap: wrap;
     justify-content: space-around;
     gap: 10px;
+    margin: 20px 0;
+    padding: 15px;
+    background: #ecf0f1;
+    border-radius: 30px;
 }
 
 .result-player {
     background: #2c3e50;
     color: white;
     padding: 10px 20px;
-    border-radius: 40px;
-    font-weight: 600;
-    min-width: 150px;
+    border-radius: 30px;
+    font-weight: bold;
+    min-width: 200px;
+    text-align: center;
+    border-left: 8px solid;
 }
 
+.result-player:nth-child(1) { border-left-color: #3498db; }
+.result-player:nth-child(2) { border-left-color: #e74c3c; }
+.result-player:nth-child(3) { border-left-color: #2ecc71; }
+.result-player:nth-child(4) { border-left-color: #f39c12; }
+
 #result-graph-area {
+    text-align: center;
     margin: 20px 0;
+}
+
+#result-graph-area p {
+    font-size: 1.2rem;
+    color: #2c3e50;
+    margin-bottom: 10px;
 }
 
 #result-canvas {
     width: 100%;
     height: auto;
-    background: #2f3640;
+    background: #f5f7fa;
     border-radius: 30px;
 }
 
@@ -508,7 +554,7 @@ h1, h2 {
     font-weight: bold;
     cursor: pointer;
     font-size: 1.1rem;
-    margin-top: 10px;
+    margin-top: 20px;
 }
 
 #back-to-lobby-btn:hover {
@@ -534,9 +580,12 @@ h1, h2 {
         height: 45px;
         font-size: 1rem;
     }
+    .claim-button {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
     .result-player {
-        min-width: 120px;
+        min-width: 150px;
         font-size: 0.9rem;
     }
 }
-
