@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖途論戰 Graph Rivals</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Firebase SDK v8 (不需要 auth) -->
+    <!-- Firebase SDK v8 -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
@@ -31,14 +31,29 @@
                 <button id="waiting-exit-btn">退出房間</button>
             </div>
             <h2>等待玩家加入⋯</h2>
+            <!-- 裁判資訊（僅派對模式顯示） -->
+            <div id="referee-info" style="display: none; background: #34495e; color: white; padding: 8px; border-radius: 20px; margin-bottom: 10px;">
+                👨‍⚖️ 裁判：房主
+            </div>
             <div id="player-list">
-                <div class="player-waiting" id="waiting-player1">藍隊 <span class="waiting-status" id="player1-status">❌</span></div>
-                <div class="player-waiting" id="waiting-player2">紅隊 <span class="waiting-status" id="player2-status">❌</span></div>
-                <div class="player-waiting" id="waiting-player3">綠隊 <span class="waiting-status" id="player3-status">❌</span></div>
-                <div class="player-waiting" id="waiting-player4">黃隊 <span class="waiting-status" id="player4-status">❌</span></div>
+                <!-- 一般模式顯示玩家1~4，派對模式顯示玩家2~5（玩家1為裁判） -->
+                <div class="player-waiting" id="waiting-player1" data-player="player1">藍隊 <span class="waiting-status" id="player1-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player2" data-player="player2">紅隊 <span class="waiting-status" id="player2-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player3" data-player="player3">綠隊 <span class="waiting-status" id="player3-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player4" data-player="player4">紫隊 <span class="waiting-status" id="player4-status">❌</span></div>
+                <!-- 第五玩家（派對模式用） -->
+                <div class="player-waiting" id="waiting-player5" data-player="player5" style="display: none;">藍隊 <span class="waiting-status" id="player5-status">❌</span></div>
             </div>
             <div id="waiting-start-area">
                 <button id="start-game-btn" style="display: none;">開始遊戲</button>
+                <!-- 模式選擇，僅房主可見 -->
+                <div id="mode-selection" style="display: none; margin-top: 15px;">
+                    <label style="color: #2c3e50;">遊戲模式：</label>
+                    <select id="game-mode-select">
+                        <option value="normal">一般模式</option>
+                        <option value="party">派對模式</option>
+                    </select>
+                </div>
             </div>
             <p id="waiting-hint">等待房主開始遊戲⋯</p>
         </div>
@@ -68,12 +83,13 @@
                 </div>
             </div>
 
-            <!-- 四位玩家資訊 -->
+            <!-- 玩家資訊（動態顯示五位，但只有玩家會出現） -->
             <div id="players-info">
                 <div id="player1-info" class="player-info"><span class="team-name">藍隊</span> <span class="player-start" id="p1-start"></span></div>
                 <div id="player2-info" class="player-info"><span class="team-name">紅隊</span> <span class="player-start" id="p2-start"></span></div>
                 <div id="player3-info" class="player-info"><span class="team-name">綠隊</span> <span class="player-start" id="p3-start"></span></div>
-                <div id="player4-info" class="player-info"><span class="team-name">黃隊</span> <span class="player-start" id="p4-start"></span></div>
+                <div id="player4-info" class="player-info"><span class="team-name">紫隊</span> <span class="player-start" id="p4-start"></span></div>
+                <div id="player5-info" class="player-info" style="display: none;"><span class="team-name">藍隊</span> <span class="player-start" id="p5-start"></span></div>
             </div>
 
             <div id="map-container">
@@ -125,7 +141,7 @@
         </div>
     </div>
 
-    <!-- 自訂 JavaScript (順序重要) -->
+    <!-- 自訂 JavaScript -->
     <script src="firebase-config.js"></script>
     <script src="script.js"></script>
     <!-- 連線檢測 (可選) -->
