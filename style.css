@@ -116,6 +116,15 @@ h1, h2 {
     font-weight: bold;
 }
 
+#referee-info {
+    background: #34495e;
+    color: white;
+    padding: 8px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
 #player-list {
     margin: 20px 0;
 }
@@ -134,10 +143,11 @@ h1, h2 {
 }
 
 /* 等待房間各隊伍邊框顏色 */
-#waiting-player1 { border-left-color: #3498db; }
-#waiting-player2 { border-left-color: #e74c3c; }
-#waiting-player3 { border-left-color: #2ecc71; }
-#waiting-player4 { border-left-color: #f39c12; }
+#waiting-player1 { border-left-color: #3498db; } /* 藍 */
+#waiting-player2 { border-left-color: #e74c3c; } /* 紅 */
+#waiting-player3 { border-left-color: #2ecc71; } /* 綠 */
+#waiting-player4 { border-left-color: #9b59b6; } /* 紫 */
+#waiting-player5 { border-left-color: #3498db; } /* 藍（派對模式第五玩家） */
 
 .player-waiting.current-player {
     border: 3px solid #f1c40f;
@@ -161,6 +171,16 @@ h1, h2 {
     font-weight: bold;
     cursor: pointer;
     font-size: 1.2rem;
+}
+
+#mode-selection select {
+    padding: 8px 16px;
+    border-radius: 30px;
+    border: 1px solid #b0bec5;
+    background: white;
+    font-size: 1rem;
+    margin-left: 10px;
+    cursor: pointer;
 }
 
 #waiting-hint {
@@ -290,10 +310,11 @@ h1, h2 {
 }
 
 /* 各隊伍邊框顏色 */
-#player1-info { border-left-color: #3498db; }
-#player2-info { border-left-color: #e74c3c; }
-#player3-info { border-left-color: #2ecc71; }
-#player4-info { border-left-color: #f39c12; }
+#player1-info { border-left-color: #3498db; } /* 藍 */
+#player2-info { border-left-color: #e74c3c; } /* 紅 */
+#player3-info { border-left-color: #2ecc71; } /* 綠 */
+#player4-info { border-left-color: #9b59b6; } /* 紫 */
+#player5-info { border-left-color: #3498db; } /* 藍（第五玩家） */
 
 .player-info.current-player {
     border: 3px solid #f1c40f;
@@ -525,7 +546,8 @@ h1, h2 {
 .result-player:nth-child(1) { border-left-color: #3498db; }
 .result-player:nth-child(2) { border-left-color: #e74c3c; }
 .result-player:nth-child(3) { border-left-color: #2ecc71; }
-.result-player:nth-child(4) { border-left-color: #f39c12; }
+.result-player:nth-child(4) { border-left-color: #9b59b6; }
+.result-player:nth-child(5) { border-left-color: #3498db; }
 
 #result-graph-area {
     text-align: center;
