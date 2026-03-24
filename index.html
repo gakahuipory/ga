@@ -36,17 +36,15 @@
                 👨‍⚖️ 裁判：房主
             </div>
             <div id="player-list">
-                <!-- 一般模式顯示玩家1~4，派對模式顯示玩家2~5（玩家1為裁判） -->
-                <div class="player-waiting" id="waiting-player1" data-player="player1">藍隊 <span class="waiting-status" id="player1-status">❌</span></div>
-                <div class="player-waiting" id="waiting-player2" data-player="player2">紅隊 <span class="waiting-status" id="player2-status">❌</span></div>
-                <div class="player-waiting" id="waiting-player3" data-player="player3">綠隊 <span class="waiting-status" id="player3-status">❌</span></div>
-                <div class="player-waiting" id="waiting-player4" data-player="player4">紫隊 <span class="waiting-status" id="player4-status">❌</span></div>
-                <!-- 第五玩家（派對模式用） -->
-                <div class="player-waiting" id="waiting-player5" data-player="player5" style="display: none;">藍隊 <span class="waiting-status" id="player5-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player1">藍隊 <span class="waiting-status" id="player1-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player2">紅隊 <span class="waiting-status" id="player2-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player3">綠隊 <span class="waiting-status" id="player3-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player4">紫隊 <span class="waiting-status" id="player4-status">❌</span></div>
+                <div class="player-waiting" id="waiting-player5" style="display: none;">藍隊 <span class="waiting-status" id="player5-status">❌</span></div>
             </div>
             <div id="waiting-start-area">
                 <button id="start-game-btn" style="display: none;">開始遊戲</button>
-                <!-- 模式選擇，僅房主可見 -->
+                <!-- 模式選擇（僅房主可見） -->
                 <div id="mode-selection" style="display: none; margin-top: 15px;">
                     <label style="color: #2c3e50;">遊戲模式：</label>
                     <select id="game-mode-select">
@@ -76,14 +74,19 @@
                     <span> 總和: <span id="dice-sum">0</span></span>
                     <button id="roll-dice-btn" disabled>擲骰(回合自動)</button>
                 </div>
+                <!-- 技能卡區域 -->
                 <div id="skill-area" style="opacity: 0.5; pointer-events: none;">
                     <div class="skill-card">🔁 換線 (0)</div>
                     <div class="skill-card">🎲 重骰 (0)</div>
                     <div class="skill-card">✨ 特殊 (0)</div>
                 </div>
+                <!-- 裁判專用返回按鈕 -->
+                <div id="referee-actions" style="display: none;">
+                    <button id="undo-btn" class="undo-button">↩️ 返回上一步</button>
+                </div>
             </div>
 
-            <!-- 玩家資訊（動態顯示五位，但只有玩家會出現） -->
+            <!-- 四位玩家資訊 -->
             <div id="players-info">
                 <div id="player1-info" class="player-info"><span class="team-name">藍隊</span> <span class="player-start" id="p1-start"></span></div>
                 <div id="player2-info" class="player-info"><span class="team-name">紅隊</span> <span class="player-start" id="p2-start"></span></div>
