@@ -10,10 +10,11 @@ let lastTurn = null;
 let cleanupInterval = null;
 let roomRef = null;
 
-// 節點座標
-const nodePos = {
-    A: { x: 50, y: 96 },
-    B: { x: 164, y: 233 },
+// ---------- 地圖資料 ----------
+// 標準版節點座標 (13個)
+const standardNodes = {
+    A: { x: 393, y: 96 },
+    B: { x: 140, y: 120 },
     C: { x: 50, y: 371 },
     D: { x: 221, y: 371 },
     E: { x: 393, y: 233 },
@@ -27,8 +28,17 @@ const nodePos = {
     M: { x: 507, y: 508 }
 };
 
-// 所有邊
-const allEdges = [
+// 加大版節點座標 (15個) - 新增 N, O，並微調 M, H 避免重疊
+const largeNodes = {
+    ...standardNodes,
+    N: { x: 140, y: 600 },   // 位於 C 下方，與 L 平行 (y=600)
+    O: { x: 393, y: 600 },   // 位於 E 下方，與 N 平行 (y=600)
+    M: { x: 507, y: 540 },
+    H: { x: 564, y: 70 }
+};
+
+// 標準版邊 (28條)
+const standardEdges = [
     { id: 'AB', u: 'A', v: 'B' }, { id: 'AC', u: 'A', v: 'C' }, { id: 'AE', u: 'A', v: 'E' }, { id: 'AH', u: 'A', v: 'H' },
     { id: 'BC', u: 'B', v: 'C' }, { id: 'BD', u: 'B', v: 'D' }, { id: 'BE', u: 'B', v: 'E' }, { id: 'BF', u: 'B', v: 'F' },
     { id: 'CD', u: 'C', v: 'D' },
@@ -42,8 +52,26 @@ const allEdges = [
     { id: 'KL', u: 'K', v: 'L' }, { id: 'KM', u: 'K', v: 'M' },
     { id: 'LM', u: 'L', v: 'M' }
 ];
-const TOTAL_EDGES = allEdges.length;
+
+// 加大版邊 (在標準基礎上新增 8 條)
+const largeEdges = [
+    ...standardEdges,
+    { id: 'BN', u: 'B', v: 'N' }, { id: 'CN', u: 'C', v: 'N' }, { id: 'DN', u: 'D', v: 'N' }, { id: 'NO', u: 'N', v: 'O' },
+    { id: 'FO', u: 'F', v: 'O' }, { id: 'MO', u: 'M', v: 'O' }, { id: 'LO', u: 'L', v: 'O' }, { id: 'MH', u: 'M', v: 'H' }
+];
+
+const TOTAL_EDGES_STANDARD = standardEdges.length;        // 28
+const TOTAL_EDGES_LARGE = largeEdges.length;             // 36
 const ALL_PLAYERS = ['player1', 'player2', 'player3', 'player4', 'player5'];
+
+// 輔助函數：根據地圖版本取得節點和邊
+function getMapData(mapVersion) {
+    if (mapVersion === 'large') {
+        return { nodes: largeNodes, edges: largeEdges, totalEdges: TOTAL_EDGES_LARGE };
+    } else {
+        return { nodes: standardNodes, edges: standardEdges, totalEdges: TOTAL_EDGES_STANDARD };
+    }
+}
 
 // ---------- 綁定按鈕事件 ----------
 document.getElementById('create-btn').addEventListener('click', createRoom);
@@ -130,6 +158,7 @@ function createRoom() {
             turn: 'player1',
             gamePhase: 'waiting',
             gameMode: 'normal',
+            mapVersion: 'standard',     // 預設標準地圖
             edgesOwner: {},
             edgesScore: {},
             dices: [0, 0, 0],
@@ -142,7 +171,6 @@ function createRoom() {
             document.getElementById('waiting-room').style.display = 'block';
             document.getElementById('waiting-room-number').textContent = room;
             document.getElementById('start-game-btn').style.display = 'inline-block';
-            generateStartButtons();
             listenRoom(room);
             startCleanupTimer(room);
         });
@@ -187,25 +215,10 @@ function joinRoom() {
             document.getElementById('waiting-room').style.display = 'block';
             document.getElementById('waiting-room-number').textContent = room;
             document.getElementById('start-game-btn').style.display = 'none';
-            generateStartButtons();
             listenRoom(room);
             startCleanupTimer(room);
         });
     });
-}
-
-function generateStartButtons() {
-    const container = document.querySelector('.node-buttons');
-    if (!container) return;
-    container.innerHTML = '';
-    for (let i = 0; i < 13; i++) {
-        const node = String.fromCharCode(65 + i);
-        const btn = document.createElement('button');
-        btn.className = 'start-node';
-        btn.dataset.node = node;
-        btn.textContent = node;
-        container.appendChild(btn);
-    }
 }
 
 function listenRoom(room) {
@@ -411,6 +424,11 @@ function updateGameUI(data) {
     const edgesOwner = data.edgesOwner || {};
     const edgesScore = data.edgesScore || {};
     const gameMode = data.gameMode || 'normal';
+    const mapVersion = data.mapVersion || 'standard';
+    const mapData = getMapData(mapVersion);
+    const allEdges = mapData.edges;
+    const totalEdges = mapData.totalEdges;
+    const nodePos = mapData.nodes;
 
     const activePlayers = getActivePlayers(data);
     const isPlayer = activePlayers.includes(playerId);
@@ -438,6 +456,7 @@ function updateGameUI(data) {
         document.getElementById('current-player-label').textContent = `(你是 ${myTeam.name})`;
     }
 
+    // 玩家卡片
     ALL_PLAYERS.forEach(p => {
         const card = document.getElementById(`${p}-info`);
         if (!card) return;
@@ -471,7 +490,7 @@ function updateGameUI(data) {
         } else if (gamePhase === 'start') {
             statusEl.textContent = '👥 所有隊伍已加入，請選擇起點';
         } else if (gamePhase === 'playing') {
-            statusEl.textContent = `⚔️ 遊戲進行中 (${gameMode === 'party' ? '派對模式' : '一般模式'})`;
+            statusEl.textContent = `⚔️ 遊戲進行中 (${gameMode === 'party' ? '派對模式' : '一般模式'})${mapVersion === 'large' ? ' - 加大地圖' : ''}`;
         } else if (gamePhase === 'weak_claim') {
             statusEl.textContent = `🤝 弱勢方申請階段 (${gameMode === 'party' ? '派對模式' : '一般模式'})`;
         } else if (gamePhase === 'ended') {
@@ -484,28 +503,41 @@ function updateGameUI(data) {
     const weakSection = document.getElementById('weak-player-section');
 
     if (gamePhase === 'start') {
+        // 動態生成起點按鈕（根據地圖版本）
+        const container = document.querySelector('.node-buttons');
+        if (container) {
+            container.innerHTML = '';
+            const nodeList = Object.keys(nodePos);
+            nodeList.forEach(node => {
+                const btn = document.createElement('button');
+                btn.className = 'start-node';
+                btn.dataset.node = node;
+                btn.textContent = node;
+                container.appendChild(btn);
+            });
+        }
         if (startSelection) startSelection.style.display = isPlayer && !players[playerId]?.start ? 'block' : 'none';
         if (edgeSelection) edgeSelection.style.display = 'none';
         if (weakSection) weakSection.style.display = 'none';
-        document.getElementById('game-status').innerHTML = '請選擇你的起點 (A~M)';
+        document.getElementById('game-status').innerHTML = '請選擇你的起點 (A~M' + (mapVersion === 'large' ? ', N, O' : '') + ')';
     } else if (gamePhase === 'playing') {
         if (startSelection) startSelection.style.display = 'none';
         if (edgeSelection) edgeSelection.style.display = isPlayer ? 'block' : 'none';
         if (weakSection) weakSection.style.display = 'none';
-        if (isPlayer) generateEdgeButtons(data);
+        if (isPlayer) generateEdgeButtons(data, allEdges, nodePos);
         document.getElementById('game-status').innerHTML = '';
     } else if (gamePhase === 'weak_claim') {
         if (startSelection) startSelection.style.display = 'none';
         if (edgeSelection) edgeSelection.style.display = 'none';
         if (weakSection) weakSection.style.display = isPlayer ? 'block' : 'none';
-        if (isPlayer) generateClaimButtons(data);
+        if (isPlayer) generateClaimButtons(data, allEdges, nodePos);
     } else {
         if (startSelection) startSelection.style.display = 'none';
         if (edgeSelection) edgeSelection.style.display = 'none';
         if (weakSection) weakSection.style.display = 'none';
     }
 
-    drawMap(edgesOwner, players, gameMode);
+    drawMap(edgesOwner, players, gameMode, nodePos, allEdges);
 }
 
 // 保存歷史記錄，確保欄位不為 undefined
@@ -526,7 +558,7 @@ function saveHistory(data) {
     return history;
 }
 
-// 裁判返回上一步，確保所有更新欄位不為 undefined
+// 裁判返回上一步
 function undoLastMove() {
     if (!currentRoom || playerId !== 'player1') return;
     database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
@@ -543,7 +575,6 @@ function undoLastMove() {
             return;
         }
         const lastState = history[history.length - 1];
-        // 確保所有欄位都不是 undefined，而是 null 或有效值
         const updates = {
             edgesOwner: lastState.edgesOwner || {},
             edgesScore: lastState.edgesScore || {},
@@ -565,7 +596,7 @@ function undoLastMove() {
     });
 }
 
-function wouldSplitPlayerGraph(playerId, edgeId, data) {
+function wouldSplitPlayerGraph(playerId, edgeId, data, allEdges) {
     const playerEdges = Object.keys(data.players[playerId]?.edges || {});
     if (!playerEdges.includes(edgeId)) return false;
     const remainingEdges = playerEdges.filter(eid => eid !== edgeId);
@@ -599,7 +630,7 @@ function wouldSplitPlayerGraph(playerId, edgeId, data) {
     return roots.size > 1;
 }
 
-function generateClaimButtons(data) {
+function generateClaimButtons(data, allEdges, nodePos) {
     const weakState = data.weakState;
     if (!weakState || weakState.weakPlayer !== playerId) {
         const weakSection = document.getElementById('weak-player-section');
@@ -607,7 +638,7 @@ function generateClaimButtons(data) {
         return;
     }
     const edgesOwner = data.edgesOwner || {};
-    const weakPoints = getPlayerPointsFromData(playerId, data);
+    const weakPoints = getPlayerPointsFromData(playerId, data, allEdges, nodePos);
     const candidateEdges = allEdges.filter(edge => {
         const owner = edgesOwner[edge.id];
         if (!owner || owner === playerId) return false;
@@ -615,7 +646,7 @@ function generateClaimButtons(data) {
     });
     const strongEdges = candidateEdges.filter(edge => {
         const owner = edgesOwner[edge.id];
-        return !wouldSplitPlayerGraph(owner, edge.id, data);
+        return !wouldSplitPlayerGraph(owner, edge.id, data, allEdges);
     });
     const uniqueEdges = [...new Set(strongEdges)];
     const container = document.getElementById('claim-buttons-container');
@@ -648,12 +679,15 @@ document.getElementById('claim-buttons-container')?.addEventListener('click', (e
         if (!data || data.gamePhase !== 'weak_claim') return;
         const weakState = data.weakState;
         if (!weakState || weakState.weakPlayer !== playerId) return;
+        const mapVersion = data.mapVersion || 'standard';
+        const mapData = getMapData(mapVersion);
+        const allEdges = mapData.edges;
         const edgesOwner = data.edgesOwner || {};
         const edge = allEdges.find(e => e.id === edgeId);
         if (!edge) return;
         const owner = edgesOwner[edgeId];
         if (!owner || owner === playerId) return;
-        if (wouldSplitPlayerGraph(owner, edgeId, data)) {
+        if (wouldSplitPlayerGraph(owner, edgeId, data, allEdges)) {
             alert('此邊會使對方圖形分裂成兩個有邊的部分，不能申請！');
             return;
         }
@@ -694,7 +728,7 @@ document.getElementById('claim-buttons-container')?.addEventListener('click', (e
     });
 });
 
-function getPlayerPointsFromData(playerId, data) {
+function getPlayerPointsFromData(playerId, data, allEdges, nodePos) {
     if (!data?.players) return new Set();
     const player = data.players[playerId];
     if (!player) return new Set();
@@ -706,12 +740,12 @@ function getPlayerPointsFromData(playerId, data) {
     return points;
 }
 
-function generateEdgeButtons(data) {
+function generateEdgeButtons(data, allEdges, nodePos) {
     const edgesOwner = data.edgesOwner || {};
     const players = data.players;
     const edgesScore = data.edgesScore || {};
     if (!players[playerId]) return;
-    const playerPoints = getPlayerPointsFromData(playerId, data);
+    const playerPoints = getPlayerPointsFromData(playerId, data, allEdges, nodePos);
     const container = document.getElementById('edge-buttons-container');
     if (!container) return;
     container.innerHTML = '';
@@ -741,11 +775,12 @@ function generateEdgeButtons(data) {
     });
 }
 
-function drawMap(edgesOwner, players, gameMode) {
+function drawMap(edgesOwner, players, gameMode, nodePos, allEdges) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     allEdges.forEach(edge => {
         const u = nodePos[edge.u];
         const v = nodePos[edge.v];
+        if (!u || !v) return;
         ctx.beginPath();
         ctx.moveTo(u.x, u.y);
         ctx.lineTo(v.x, v.y);
@@ -792,17 +827,32 @@ function drawMap(edgesOwner, players, gameMode) {
     });
 }
 
+// ---------- 開始遊戲按鈕（裁判可選擇地圖）----------
 function startGame() {
     if (!currentRoom || playerId !== 'player1') return;
-    database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
+    const roomRefLocal = database.ref(`rooms/${currentRoom}`);
+    roomRefLocal.once('value').then(snap => {
         const data = snap.val();
         const activePlayers = getActivePlayers(data);
         if (activePlayers.length === 4) {
-            database.ref(`rooms/${currentRoom}`).update({
-                gamePhase: 'start',
-                turn: activePlayers[0],
-                lastActive: firebase.database.ServerValue.TIMESTAMP
-            });
+            const gameMode = data.gameMode || 'normal';
+            if (gameMode === 'party') {
+                // 派對模式：裁判選擇地圖
+                const choice = prompt('請選擇地圖版本：\n1 - 標準地圖\n2 - 加大地圖', '1');
+                let mapVersion = (choice === '2') ? 'large' : 'standard';
+                roomRefLocal.child('mapVersion').set(mapVersion).then(() => {
+                    roomRefLocal.child('gamePhase').set('start');
+                    roomRefLocal.child('turn').set(activePlayers[0]);
+                    roomRefLocal.child('lastActive').set(firebase.database.ServerValue.TIMESTAMP);
+                });
+            } else {
+                // 一般模式固定標準地圖
+                roomRefLocal.child('mapVersion').set('standard').then(() => {
+                    roomRefLocal.child('gamePhase').set('start');
+                    roomRefLocal.child('turn').set(activePlayers[0]);
+                    roomRefLocal.child('lastActive').set(firebase.database.ServerValue.TIMESTAMP);
+                });
+            }
         } else {
             alert('尚未集滿四位玩家，無法開始遊戲');
         }
@@ -820,9 +870,15 @@ document.getElementById('edge-buttons-container')?.addEventListener('click', (e)
             const data = snap.val();
             if (!data) { alert('房間資料不存在'); return; }
             if (data.gamePhase !== 'playing') { alert('遊戲不在進行中'); return; }
+            const mapVersion = data.mapVersion || 'standard';
+            const mapData = getMapData(mapVersion);
+            const allEdges = mapData.edges;
+            const totalEdges = mapData.totalEdges;
+            const nodePos = mapData.nodes;
+
             const edgesOwner = data.edgesOwner || {};
             if (edgesOwner[edgeId]) { alert('這條邊已被佔'); return; }
-            const playerPoints = getPlayerPointsFromData(playerId, data);
+            const playerPoints = getPlayerPointsFromData(playerId, data, allEdges, nodePos);
             const edge = allEdges.find(e => e.id === edgeId);
             if (!edge) return;
             if (!playerPoints.has(edge.u) && !playerPoints.has(edge.v)) {
@@ -867,7 +923,7 @@ document.getElementById('edge-buttons-container')?.addEventListener('click', (e)
             }
             updates.turn = nextPlayer;
             const newOwnerCount = Object.keys(data.edgesOwner || {}).length + 1;
-            if (newOwnerCount === TOTAL_EDGES) updates.gamePhase = 'ended';
+            if (newOwnerCount === totalEdges) updates.gamePhase = 'ended';
             const history = saveHistory(data);
             updates.history = history;
             database.ref(`rooms/${currentRoom}`).update(updates).then(() => console.log('✅ 更新成功'));
@@ -926,6 +982,7 @@ function resetGame() {
         turn: 'player1',
         gamePhase: 'waiting',
         gameMode: 'normal',
+        mapVersion: 'standard',
         edgesOwner: {},
         edgesScore: {},
         dices: [0, 0, 0],
@@ -949,6 +1006,10 @@ function showResult(data) {
     const edgesOwner = data.edgesOwner || {};
     const activePlayers = getActivePlayers(data);
     const gameMode = data.gameMode || 'normal';
+    const mapVersion = data.mapVersion || 'standard';
+    const mapData = getMapData(mapVersion);
+    const allEdges = mapData.edges;
+    const nodePos = mapData.nodes;
 
     const resultDiv = document.getElementById('result-players-info');
     if (resultDiv) {
@@ -959,7 +1020,7 @@ function showResult(data) {
             const totalScore = playerEdges.reduce((sum, eid) => sum + (edgesScore[eid] || 0), 0);
             const div = document.createElement('div');
             div.className = 'result-player';
-            div.innerHTML = `${team.name}: ${playerEdges.length} 條邊，總分 ${totalScore}`;
+            div.innerHTML = `${team.name}: ${playerEdges.length} 條邊，總成本 ${totalScore}`;
             resultDiv.appendChild(div);
         });
     }
@@ -979,6 +1040,7 @@ function showResult(data) {
         });
         drawEdges.forEach(edge => {
             const u = nodePos[edge.u], v = nodePos[edge.v];
+            if (!u || !v) return;
             resultCtx.beginPath();
             resultCtx.moveTo(u.x, u.y);
             resultCtx.lineTo(v.x, v.y);
