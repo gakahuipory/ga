@@ -4,7 +4,7 @@ const ctx = canvas.getContext('2d');
 const resultCanvas = document.getElementById('result-canvas');
 const resultCtx = resultCanvas?.getContext('2d');
 let currentRoom = null;
-let playerId = null;          // 當前用戶的ID（可能為裁判或玩家）
+let playerId = null;
 let myTurn = false;
 let lastTurn = null;
 let cleanupInterval = null;
@@ -53,45 +53,52 @@ document.getElementById('exit-room-btn').addEventListener('click', exitRoom);
 document.getElementById('waiting-exit-btn').addEventListener('click', exitRoom);
 document.getElementById('reset-game-btn').addEventListener('click', resetGame);
 document.getElementById('back-to-lobby-btn').addEventListener('click', backToLobby);
+const undoBtn = document.getElementById('undo-btn');
+if (undoBtn) undoBtn.addEventListener('click', undoLastMove);
 
-document.getElementById('game-mode-select')?.addEventListener('change', (e) => {
-    if (!currentRoom || playerId !== 'player1') return;
-    const newMode = e.target.value;
-    database.ref(`rooms/${currentRoom}/players`).once('value').then(snap => {
-        const players = snap.val() || {};
-        const joinedCount = ALL_PLAYERS.filter(p => players[p]?.joined).length;
-        if (joinedCount > 1) {
-            alert('已有其他玩家加入，無法切換模式');
-            database.ref(`rooms/${currentRoom}/gameMode`).once('value').then(s => {
-                document.getElementById('game-mode-select').value = s.val() || 'normal';
-            });
-            return;
-        }
-        const updates = {
-            gameMode: newMode,
-            players: newMode === 'party' ? {
-                player1: { start: null, edges: {}, joined: true },
-                player2: { start: null, edges: {}, joined: false },
-                player3: { start: null, edges: {}, joined: false },
-                player4: { start: null, edges: {}, joined: false },
-                player5: { start: null, edges: {}, joined: false }
-            } : {
-                player1: { start: null, edges: {}, joined: true },
-                player2: { start: null, edges: {}, joined: false },
-                player3: { start: null, edges: {}, joined: false },
-                player4: { start: null, edges: {}, joined: false },
-                player5: { start: null, edges: {}, joined: false }
-            },
-            gamePhase: 'waiting',
-            turn: 'player1',
-            edgesOwner: {},
-            edgesScore: {},
-            weakState: null,
-            lastActive: firebase.database.ServerValue.TIMESTAMP
-        };
-        database.ref(`rooms/${currentRoom}`).update(updates);
+// 模式選擇事件
+const modeSelect = document.getElementById('game-mode-select');
+if (modeSelect) {
+    modeSelect.addEventListener('change', (e) => {
+        if (!currentRoom || playerId !== 'player1') return;
+        const newMode = e.target.value;
+        database.ref(`rooms/${currentRoom}/players`).once('value').then(snap => {
+            const players = snap.val() || {};
+            const joinedCount = ALL_PLAYERS.filter(p => players[p]?.joined).length;
+            if (joinedCount > 1) {
+                alert('已有其他玩家加入，無法切換模式');
+                database.ref(`rooms/${currentRoom}/gameMode`).once('value').then(s => {
+                    modeSelect.value = s.val() || 'normal';
+                });
+                return;
+            }
+            const updates = {
+                gameMode: newMode,
+                players: newMode === 'party' ? {
+                    player1: { start: null, edges: {}, joined: true },
+                    player2: { start: null, edges: {}, joined: false },
+                    player3: { start: null, edges: {}, joined: false },
+                    player4: { start: null, edges: {}, joined: false },
+                    player5: { start: null, edges: {}, joined: false }
+                } : {
+                    player1: { start: null, edges: {}, joined: true },
+                    player2: { start: null, edges: {}, joined: false },
+                    player3: { start: null, edges: {}, joined: false },
+                    player4: { start: null, edges: {}, joined: false },
+                    player5: { start: null, edges: {}, joined: false }
+                },
+                gamePhase: 'waiting',
+                turn: 'player1',
+                edgesOwner: {},
+                edgesScore: {},
+                weakState: null,
+                lastActive: firebase.database.ServerValue.TIMESTAMP,
+                history: []
+            };
+            database.ref(`rooms/${currentRoom}`).update(updates);
+        });
     });
-});
+}
 
 function createRoom() {
     const roomInput = document.getElementById('room-input').value.trim();
@@ -127,7 +134,8 @@ function createRoom() {
             edgesScore: {},
             dices: [0, 0, 0],
             lastActive: firebase.database.ServerValue.TIMESTAMP,
-            weakState: null
+            weakState: null,
+            history: []
         }).then(() => {
             roomRef.onDisconnect().remove();
             document.getElementById('login-section').style.display = 'none';
@@ -281,10 +289,8 @@ function startCleanupTimer(room) {
     }, 60000);
 }
 
-// 根據模式和玩家ID獲取隊伍資訊（修正一般模式與派對模式的顏色分配）
 function getTeamInfo(pid, gameMode) {
     if (gameMode === 'party') {
-        // 派對模式：玩家1為裁判，玩家2~5為藍、紅、綠、紫
         switch (pid) {
             case 'player1': return { name: '裁判', color: '#95a5a6' };
             case 'player2': return { name: '藍隊', color: '#3498db' };
@@ -294,7 +300,6 @@ function getTeamInfo(pid, gameMode) {
             default: return { name: pid, color: '#000' };
         }
     } else {
-        // 一般模式：玩家1~4為藍、紅、綠、紫
         switch (pid) {
             case 'player1': return { name: '藍隊', color: '#3498db' };
             case 'player2': return { name: '紅隊', color: '#e74c3c' };
@@ -309,16 +314,16 @@ function updateWaitingRoom(data) {
     const players = data.players;
     const gameMode = data.gameMode || 'normal';
 
-    // 裁判資訊
     const refereeDiv = document.getElementById('referee-info');
-    if (gameMode === 'party') {
-        refereeDiv.style.display = 'block';
-        refereeDiv.innerHTML = playerId === 'player1' ? '👨‍⚖️ 你是裁判' : '👨‍⚖️ 裁判：房主';
-    } else {
-        refereeDiv.style.display = 'none';
+    if (refereeDiv) {
+        if (gameMode === 'party') {
+            refereeDiv.style.display = 'block';
+            refereeDiv.innerHTML = playerId === 'player1' ? '👨‍⚖️ 你是裁判' : '👨‍⚖️ 裁判：房主';
+        } else {
+            refereeDiv.style.display = 'none';
+        }
     }
 
-    // 獲取所有等待元素
     const waitingEls = {
         player1: document.getElementById('waiting-player1'),
         player2: document.getElementById('waiting-player2'),
@@ -328,16 +333,16 @@ function updateWaitingRoom(data) {
     };
 
     if (gameMode === 'party') {
-        // 派對模式：只顯示玩家2~5，裁判隱藏
-        waitingEls.player1.style.display = 'none';
-        waitingEls.player2.style.display = 'flex';
-        waitingEls.player3.style.display = 'flex';
-        waitingEls.player4.style.display = 'flex';
-        waitingEls.player5.style.display = 'flex';
+        if (waitingEls.player1) waitingEls.player1.style.display = 'none';
+        if (waitingEls.player2) waitingEls.player2.style.display = 'flex';
+        if (waitingEls.player3) waitingEls.player3.style.display = 'flex';
+        if (waitingEls.player4) waitingEls.player4.style.display = 'flex';
+        if (waitingEls.player5) waitingEls.player5.style.display = 'flex';
 
         const partyPlayers = ['player2', 'player3', 'player4', 'player5'];
         partyPlayers.forEach(pid => {
             const el = waitingEls[pid];
+            if (!el) return;
             const team = getTeamInfo(pid, gameMode);
             const joined = players[pid]?.joined ? '✅' : '❌';
             el.innerHTML = `${team.name} <span class="waiting-status" id="${pid}-status">${joined}</span>`;
@@ -349,16 +354,16 @@ function updateWaitingRoom(data) {
             }
         });
     } else {
-        // 一般模式：顯示玩家1~4，玩家5隱藏
-        waitingEls.player1.style.display = 'flex';
-        waitingEls.player2.style.display = 'flex';
-        waitingEls.player3.style.display = 'flex';
-        waitingEls.player4.style.display = 'flex';
-        waitingEls.player5.style.display = 'none';
+        if (waitingEls.player1) waitingEls.player1.style.display = 'flex';
+        if (waitingEls.player2) waitingEls.player2.style.display = 'flex';
+        if (waitingEls.player3) waitingEls.player3.style.display = 'flex';
+        if (waitingEls.player4) waitingEls.player4.style.display = 'flex';
+        if (waitingEls.player5) waitingEls.player5.style.display = 'none';
 
         const normalPlayers = ['player1', 'player2', 'player3', 'player4'];
         normalPlayers.forEach(pid => {
             const el = waitingEls[pid];
+            if (!el) return;
             const team = getTeamInfo(pid, gameMode);
             const joined = players[pid]?.joined ? '✅' : '❌';
             el.innerHTML = `${team.name} <span class="waiting-status" id="${pid}-status">${joined}</span>`;
@@ -374,25 +379,28 @@ function updateWaitingRoom(data) {
     const activePlayers = getActivePlayers(data);
     const allJoined = activePlayers.length === 4;
 
-    // 模式選擇
     const modeSelectDiv = document.getElementById('mode-selection');
-    if (playerId === 'player1') {
-        modeSelectDiv.style.display = 'block';
-        document.getElementById('game-mode-select').value = gameMode;
-    } else {
-        modeSelectDiv.style.display = 'none';
+    if (modeSelectDiv) {
+        if (playerId === 'player1') {
+            modeSelectDiv.style.display = 'block';
+            const select = document.getElementById('game-mode-select');
+            if (select) select.value = gameMode;
+        } else {
+            modeSelectDiv.style.display = 'none';
+        }
     }
 
-    // 開始按鈕
     const startBtn = document.getElementById('start-game-btn');
     const hint = document.getElementById('waiting-hint');
-    if (playerId === 'player1' && allJoined) {
-        startBtn.style.display = 'inline-block';
-        hint.style.display = 'none';
-    } else {
-        startBtn.style.display = 'none';
-        hint.style.display = 'block';
-        hint.textContent = playerId === 'player1' ? '等待其他隊伍加入⋯' : '等待房主開始遊戲⋯';
+    if (startBtn && hint) {
+        if (playerId === 'player1' && allJoined) {
+            startBtn.style.display = 'inline-block';
+            hint.style.display = 'none';
+        } else {
+            startBtn.style.display = 'none';
+            hint.style.display = 'block';
+            hint.textContent = playerId === 'player1' ? '等待其他隊伍加入⋯' : '等待房主開始遊戲⋯';
+        }
     }
 }
 
@@ -408,7 +416,18 @@ function updateGameUI(data) {
     const isPlayer = activePlayers.includes(playerId);
     myTurn = isPlayer && (turn === playerId);
 
-    // 回合指示
+    const skillArea = document.getElementById('skill-area');
+    const refereeActions = document.getElementById('referee-actions');
+    if (skillArea && refereeActions) {
+        if (gameMode === 'party' && playerId === 'player1') {
+            skillArea.style.display = 'none';
+            refereeActions.style.display = 'block';
+        } else {
+            skillArea.style.display = 'flex';
+            refereeActions.style.display = 'none';
+        }
+    }
+
     if (!isPlayer && playerId === 'player1' && gameMode === 'party') {
         document.getElementById('turn-indicator').textContent = '👨‍⚖️ 裁判模式';
         document.getElementById('current-player-label').textContent = '(你是裁判)';
@@ -419,12 +438,10 @@ function updateGameUI(data) {
         document.getElementById('current-player-label').textContent = `(你是 ${myTeam.name})`;
     }
 
-    // 玩家卡片
     ALL_PLAYERS.forEach(p => {
         const card = document.getElementById(`${p}-info`);
         if (!card) return;
         if (players[p]?.joined) {
-            // 裁判卡在派對模式中隱藏
             if (p === 'player1' && gameMode === 'party') {
                 card.style.display = 'none';
             } else {
@@ -432,7 +449,7 @@ function updateGameUI(data) {
                 const team = getTeamInfo(p, gameMode);
                 const nameSpan = card.querySelector('.team-name');
                 if (nameSpan) nameSpan.textContent = team.name;
-                card.style.borderLeftColor = team.color; // 動態設置左邊框顏色
+                card.style.borderLeftColor = team.color;
             }
         } else {
             card.style.display = 'none';
@@ -448,16 +465,18 @@ function updateGameUI(data) {
 
     const joinedCount = activePlayers.length;
     const statusEl = document.getElementById('room-status');
-    if (joinedCount < 4) {
-        statusEl.textContent = `⏳ 等待隊伍加入 (${joinedCount}/4)`;
-    } else if (gamePhase === 'start') {
-        statusEl.textContent = '👥 所有隊伍已加入，請選擇起點';
-    } else if (gamePhase === 'playing') {
-        statusEl.textContent = `⚔️ 遊戲進行中 (${gameMode === 'party' ? '派對模式' : '一般模式'})`;
-    } else if (gamePhase === 'weak_claim') {
-        statusEl.textContent = `🤝 弱勢方申請階段 (${gameMode === 'party' ? '派對模式' : '一般模式'})`;
-    } else if (gamePhase === 'ended') {
-        statusEl.textContent = '🏁 遊戲已結束';
+    if (statusEl) {
+        if (joinedCount < 4) {
+            statusEl.textContent = `⏳ 等待隊伍加入 (${joinedCount}/4)`;
+        } else if (gamePhase === 'start') {
+            statusEl.textContent = '👥 所有隊伍已加入，請選擇起點';
+        } else if (gamePhase === 'playing') {
+            statusEl.textContent = `⚔️ 遊戲進行中 (${gameMode === 'party' ? '派對模式' : '一般模式'})`;
+        } else if (gamePhase === 'weak_claim') {
+            statusEl.textContent = `🤝 弱勢方申請階段 (${gameMode === 'party' ? '派對模式' : '一般模式'})`;
+        } else if (gamePhase === 'ended') {
+            statusEl.textContent = '🏁 遊戲已結束';
+        }
     }
 
     const startSelection = document.getElementById('start-point-selection');
@@ -465,44 +484,92 @@ function updateGameUI(data) {
     const weakSection = document.getElementById('weak-player-section');
 
     if (gamePhase === 'start') {
-        startSelection.style.display = isPlayer && !players[playerId]?.start ? 'block' : 'none';
-        edgeSelection.style.display = 'none';
-        weakSection.style.display = 'none';
+        if (startSelection) startSelection.style.display = isPlayer && !players[playerId]?.start ? 'block' : 'none';
+        if (edgeSelection) edgeSelection.style.display = 'none';
+        if (weakSection) weakSection.style.display = 'none';
         document.getElementById('game-status').innerHTML = '請選擇你的起點 (A~M)';
     } else if (gamePhase === 'playing') {
-        startSelection.style.display = 'none';
-        if (isPlayer) {
-            edgeSelection.style.display = 'block';
-            generateEdgeButtons(data);
-        } else {
-            edgeSelection.style.display = 'none';
-        }
-        weakSection.style.display = 'none';
+        if (startSelection) startSelection.style.display = 'none';
+        if (edgeSelection) edgeSelection.style.display = isPlayer ? 'block' : 'none';
+        if (weakSection) weakSection.style.display = 'none';
+        if (isPlayer) generateEdgeButtons(data);
         document.getElementById('game-status').innerHTML = '';
     } else if (gamePhase === 'weak_claim') {
-        startSelection.style.display = 'none';
-        edgeSelection.style.display = 'none';
-        weakSection.style.display = isPlayer ? 'block' : 'none';
+        if (startSelection) startSelection.style.display = 'none';
+        if (edgeSelection) edgeSelection.style.display = 'none';
+        if (weakSection) weakSection.style.display = isPlayer ? 'block' : 'none';
         if (isPlayer) generateClaimButtons(data);
     } else {
-        startSelection.style.display = 'none';
-        edgeSelection.style.display = 'none';
-        weakSection.style.display = 'none';
+        if (startSelection) startSelection.style.display = 'none';
+        if (edgeSelection) edgeSelection.style.display = 'none';
+        if (weakSection) weakSection.style.display = 'none';
     }
 
     drawMap(edgesOwner, players, gameMode);
 }
 
-// 輔助函數：判斷搶佔該邊後，強勢方的剩餘邊是否會分成兩個以上各自有邊的連通分量
+// 保存歷史記錄，確保欄位不為 undefined
+function saveHistory(data) {
+    const historySnapshot = {
+        edgesOwner: JSON.parse(JSON.stringify(data.edgesOwner || {})),
+        edgesScore: JSON.parse(JSON.stringify(data.edgesScore || {})),
+        players: JSON.parse(JSON.stringify(data.players || {})),
+        turn: data.turn,
+        extraTurn: data.extraTurn === undefined ? null : data.extraTurn,
+        extraDiceCount: data.extraDiceCount === undefined ? null : data.extraDiceCount,
+        extraTurnOriginalNext: data.extraTurnOriginalNext === undefined ? null : data.extraTurnOriginalNext,
+        weakState: data.weakState === undefined ? null : data.weakState
+    };
+    const history = data.history || [];
+    history.push(historySnapshot);
+    if (history.length > 100) history.shift();
+    return history;
+}
+
+// 裁判返回上一步，確保所有更新欄位不為 undefined
+function undoLastMove() {
+    if (!currentRoom || playerId !== 'player1') return;
+    database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
+        const data = snap.val();
+        if (!data) return;
+        const gameMode = data.gameMode || 'normal';
+        if (gameMode !== 'party') {
+            alert('只有派對模式可以使用返回功能');
+            return;
+        }
+        const history = data.history || [];
+        if (history.length === 0) {
+            alert('沒有可以返回的上一步');
+            return;
+        }
+        const lastState = history[history.length - 1];
+        // 確保所有欄位都不是 undefined，而是 null 或有效值
+        const updates = {
+            edgesOwner: lastState.edgesOwner || {},
+            edgesScore: lastState.edgesScore || {},
+            players: lastState.players || {},
+            turn: lastState.turn,
+            extraTurn: lastState.extraTurn === undefined ? null : lastState.extraTurn,
+            extraDiceCount: lastState.extraDiceCount === undefined ? null : lastState.extraDiceCount,
+            extraTurnOriginalNext: lastState.extraTurnOriginalNext === undefined ? null : lastState.extraTurnOriginalNext,
+            weakState: lastState.weakState === undefined ? null : lastState.weakState,
+            history: history.slice(0, -1),
+            lastActive: firebase.database.ServerValue.TIMESTAMP
+        };
+        database.ref(`rooms/${currentRoom}`).update(updates).then(() => {
+            console.log('✅ 已返回上一步');
+        }).catch(err => {
+            console.error('❌ 返回失敗', err);
+            alert('返回失敗：' + err.message);
+        });
+    });
+}
+
 function wouldSplitPlayerGraph(playerId, edgeId, data) {
     const playerEdges = Object.keys(data.players[playerId]?.edges || {});
-    if (!playerEdges.includes(edgeId)) return false; // 該邊不屬於此玩家
-
-    // 剩餘邊（排除待搶佔的邊）
+    if (!playerEdges.includes(edgeId)) return false;
     const remainingEdges = playerEdges.filter(eid => eid !== edgeId);
-    if (remainingEdges.length === 0) return false; // 沒有剩餘邊，不會造成分割
-
-    // 使用並查集檢查連通性
+    if (remainingEdges.length === 0) return false;
     const parent = {};
     const find = (x) => {
         if (parent[x] === undefined) parent[x] = x;
@@ -513,16 +580,12 @@ function wouldSplitPlayerGraph(playerId, edgeId, data) {
         const ra = find(a), rb = find(b);
         if (ra !== rb) parent[ra] = rb;
     };
-
-    // 將剩餘邊加入並查集
     remainingEdges.forEach(eid => {
         const edge = allEdges.find(e => e.id === eid);
         if (edge) {
             union(edge.u, edge.v);
         }
     });
-
-    // 收集所有剩餘邊涉及到的節點
     const nodes = new Set();
     remainingEdges.forEach(eid => {
         const edge = allEdges.find(e => e.id === eid);
@@ -531,50 +594,39 @@ function wouldSplitPlayerGraph(playerId, edgeId, data) {
             nodes.add(edge.v);
         }
     });
-
-    // 找出所有連通分量的根
     const roots = new Set();
     nodes.forEach(node => roots.add(find(node)));
-
-    // 如果根數量 > 1，表示有多個各自有邊的連通分量
     return roots.size > 1;
 }
 
 function generateClaimButtons(data) {
     const weakState = data.weakState;
     if (!weakState || weakState.weakPlayer !== playerId) {
-        document.getElementById('weak-player-section').style.display = 'none';
+        const weakSection = document.getElementById('weak-player-section');
+        if (weakSection) weakSection.style.display = 'none';
         return;
     }
-
     const edgesOwner = data.edgesOwner || {};
     const weakPoints = getPlayerPointsFromData(playerId, data);
-    
-    // 找出所有與弱勢方相鄰的強勢方邊
     const candidateEdges = allEdges.filter(edge => {
         const owner = edgesOwner[edge.id];
         if (!owner || owner === playerId) return false;
         return weakPoints.has(edge.u) || weakPoints.has(edge.v);
     });
-
-    // 過濾：搶佔後不會導致強勢方圖形分裂成兩個有邊的分量
     const strongEdges = candidateEdges.filter(edge => {
         const owner = edgesOwner[edge.id];
         return !wouldSplitPlayerGraph(owner, edge.id, data);
     });
-
     const uniqueEdges = [...new Set(strongEdges)];
-
     const container = document.getElementById('claim-buttons-container');
     if (!container) return;
     container.innerHTML = '';
-
     if (uniqueEdges.length === 0) {
         container.innerHTML = '<p>沒有可申請的邊</p>';
-        document.getElementById('claim-info').textContent = '無法向任何強勢方申請（所有相鄰邊都會使對方圖形分裂）⋯';
+        const info = document.getElementById('claim-info');
+        if (info) info.textContent = '無法向任何強勢方申請（所有相鄰邊都會使對方圖形分裂）⋯';
         return;
     }
-
     uniqueEdges.forEach(edge => {
         const btn = document.createElement('button');
         btn.className = 'claim-button';
@@ -582,7 +634,8 @@ function generateClaimButtons(data) {
         btn.textContent = edge.id;
         container.appendChild(btn);
     });
-    document.getElementById('claim-info').textContent = '點擊申請佔領該邊（派對模式需手動輸入分數）';
+    const info = document.getElementById('claim-info');
+    if (info) info.textContent = '點擊申請佔領該邊（派對模式需手動輸入分數）';
 }
 
 document.getElementById('claim-buttons-container')?.addEventListener('click', (e) => {
@@ -590,25 +643,20 @@ document.getElementById('claim-buttons-container')?.addEventListener('click', (e
     if (!btn) return;
     const edgeId = btn.dataset.edgeId;
     if (!edgeId || !currentRoom) return;
-
-    firebase.database().ref(`rooms/${currentRoom}`).once('value').then(snap => {
+    database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
         const data = snap.val();
         if (!data || data.gamePhase !== 'weak_claim') return;
         const weakState = data.weakState;
         if (!weakState || weakState.weakPlayer !== playerId) return;
-
         const edgesOwner = data.edgesOwner || {};
         const edge = allEdges.find(e => e.id === edgeId);
         if (!edge) return;
         const owner = edgesOwner[edgeId];
         if (!owner || owner === playerId) return;
-
-        // 再次確認搶佔後不會分裂
         if (wouldSplitPlayerGraph(owner, edgeId, data)) {
             alert('此邊會使對方圖形分裂成兩個有邊的部分，不能申請！');
             return;
         }
-
         let score;
         if (data.gameMode === 'party') {
             const input = prompt(`請為線段 ${edgeId} 輸入三顆骰子總和 (3-18)：`);
@@ -624,28 +672,25 @@ document.getElementById('claim-buttons-container')?.addEventListener('click', (e
             const dice3 = Math.floor(Math.random() * 6) + 1;
             score = dice1 + dice2 + dice3;
         }
-
         const activePlayers = getActivePlayers(data);
         const currentIndex = activePlayers.indexOf(playerId);
         const nextIndex = (currentIndex + 1) % activePlayers.length;
         const weakPlayerNext = activePlayers[nextIndex];
-
         const updates = {};
         updates[`edgesOwner/${edgeId}`] = playerId;
         updates[`edgesScore/${edgeId}`] = score;
         updates[`players/${playerId}/edges/${edgeId}`] = true;
         updates[`players/${owner}/edges/${edgeId}`] = null;
-
         updates.turn = owner;
         updates.extraTurn = true;
         updates.extraDiceCount = 1;
         updates.extraTurnOriginalNext = weakPlayerNext;
-
         updates.weakState = null;
         updates.gamePhase = 'playing';
         updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
-
-        firebase.database().ref(`rooms/${currentRoom}`).update(updates);
+        const history = saveHistory(data);
+        updates.history = history;
+        database.ref(`rooms/${currentRoom}`).update(updates);
     });
 });
 
@@ -666,15 +711,12 @@ function generateEdgeButtons(data) {
     const players = data.players;
     const edgesScore = data.edgesScore || {};
     if (!players[playerId]) return;
-
     const playerPoints = getPlayerPointsFromData(playerId, data);
     const container = document.getElementById('edge-buttons-container');
     if (!container) return;
     container.innerHTML = '';
-
     const emptyEdges = allEdges.filter(edge => !edgesOwner[edge.id]);
     let availableEdges = emptyEdges.filter(edge => playerPoints.has(edge.u) || playerPoints.has(edge.v));
-
     if (availableEdges.length === 0 && myTurn) {
         if (data.gamePhase === 'playing') {
             roomRef.child('gamePhase').set('weak_claim').then(() => {
@@ -684,12 +726,10 @@ function generateEdgeButtons(data) {
         container.innerHTML = '<p>你已無邊可佔，進入弱勢申請階段⋯</p>';
         return;
     }
-
     if (availableEdges.length === 0) {
         container.innerHTML = '<p>沒有可佔領的邊</p>';
         return;
     }
-
     availableEdges.forEach(edge => {
         const btn = document.createElement('button');
         btn.className = 'edge-button';
@@ -718,12 +758,10 @@ function drawMap(edgesOwner, players, gameMode) {
         }
         ctx.strokeStyle = color;
         ctx.stroke();
-        // 邊 ID 文字黑色
         ctx.fillStyle = '#2c3e50';
         ctx.font = '12px monospace';
         ctx.fillText(edge.id, (u.x + v.x) / 2 - 15, (u.y + v.y) / 2 - 10);
     });
-
     for (let [node, pos] of Object.entries(nodePos)) {
         ctx.beginPath();
         ctx.arc(pos.x, pos.y, 20, 0, 2 * Math.PI);
@@ -739,7 +777,6 @@ function drawMap(edgesOwner, players, gameMode) {
         ctx.font = 'bold 16px Arial';
         ctx.fillText(node, pos.x - 8, pos.y + 6);
     }
-
     ALL_PLAYERS.forEach(p => {
         const start = players[p]?.start;
         if (start && nodePos[start]) {
@@ -757,11 +794,11 @@ function drawMap(edgesOwner, players, gameMode) {
 
 function startGame() {
     if (!currentRoom || playerId !== 'player1') return;
-    firebase.database().ref(`rooms/${currentRoom}`).once('value').then(snap => {
+    database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
         const data = snap.val();
         const activePlayers = getActivePlayers(data);
         if (activePlayers.length === 4) {
-            firebase.database().ref(`rooms/${currentRoom}`).update({
+            database.ref(`rooms/${currentRoom}`).update({
                 gamePhase: 'start',
                 turn: activePlayers[0],
                 lastActive: firebase.database.ServerValue.TIMESTAMP
@@ -778,15 +815,13 @@ document.getElementById('edge-buttons-container')?.addEventListener('click', (e)
     if (!currentRoom || !myTurn) { alert('現在不是你的回合'); return; }
     const edgeId = btn.dataset.edgeId;
     if (!edgeId) return;
-
-    firebase.database().ref(`rooms/${currentRoom}`).once('value').then(snap => {
+    database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
         try {
             const data = snap.val();
             if (!data) { alert('房間資料不存在'); return; }
             if (data.gamePhase !== 'playing') { alert('遊戲不在進行中'); return; }
             const edgesOwner = data.edgesOwner || {};
             if (edgesOwner[edgeId]) { alert('這條邊已被佔'); return; }
-
             const playerPoints = getPlayerPointsFromData(playerId, data);
             const edge = allEdges.find(e => e.id === edgeId);
             if (!edge) return;
@@ -794,18 +829,15 @@ document.getElementById('edge-buttons-container')?.addEventListener('click', (e)
                 alert('你不能佔領這條邊：它與你的現有區域不相連');
                 return;
             }
-
             let diceCount = 2, nextPlayer, score;
             const activePlayers = getActivePlayers(data);
             const currentIndex = activePlayers.indexOf(playerId);
-
             if (data.extraTurn && data.turn === playerId) {
                 diceCount = data.extraDiceCount || 1;
                 nextPlayer = data.extraTurnOriginalNext;
             } else {
                 nextPlayer = activePlayers[(currentIndex + 1) % activePlayers.length];
             }
-
             if (data.gameMode === 'party') {
                 const promptMsg = data.extraTurn && data.turn === playerId
                     ? `請為線段 ${edgeId} 輸入一顆骰子點數 (1-6)：`
@@ -823,24 +855,22 @@ document.getElementById('edge-buttons-container')?.addEventListener('click', (e)
                 score = 0;
                 for (let i = 0; i < diceCount; i++) score += Math.floor(Math.random() * 6) + 1;
             }
-
             const updates = {};
             updates[`edgesOwner/${edgeId}`] = playerId;
             updates[`edgesScore/${edgeId}`] = score;
             updates[`players/${playerId}/edges/${edgeId}`] = true;
             updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
-
             if (data.extraTurn && data.turn === playerId) {
                 updates.extraTurn = null;
                 updates.extraDiceCount = null;
                 updates.extraTurnOriginalNext = null;
             }
-
             updates.turn = nextPlayer;
             const newOwnerCount = Object.keys(data.edgesOwner || {}).length + 1;
             if (newOwnerCount === TOTAL_EDGES) updates.gamePhase = 'ended';
-
-            firebase.database().ref(`rooms/${currentRoom}`).update(updates).then(() => console.log('✅ 更新成功'));
+            const history = saveHistory(data);
+            updates.history = history;
+            database.ref(`rooms/${currentRoom}`).update(updates).then(() => console.log('✅ 更新成功'));
         } catch (err) {
             console.error('❌ 錯誤', err);
             alert('發生錯誤：' + err.message);
@@ -852,13 +882,13 @@ document.addEventListener('click', (e) => {
     if (e.target.classList.contains('start-node')) {
         const node = e.target.dataset.node;
         if (!currentRoom || !playerId) return;
-        firebase.database().ref(`rooms/${currentRoom}`).once('value').then(snap => {
+        database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
             const data = snap.val();
             if (data.gamePhase === 'start' && !data.players[playerId]?.start) {
                 const updates = {};
                 updates[`players/${playerId}/start`] = node;
                 updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
-                firebase.database().ref(`rooms/${currentRoom}`).update(updates);
+                database.ref(`rooms/${currentRoom}`).update(updates);
             }
         });
     }
@@ -891,7 +921,7 @@ function resetGame() {
     ALL_PLAYERS.forEach((p, index) => {
         resetPlayers[p] = { start: null, edges: {}, joined: index === 0 };
     });
-    firebase.database().ref(`rooms/${currentRoom}`).set({
+    database.ref(`rooms/${currentRoom}`).set({
         players: resetPlayers,
         turn: 'player1',
         gamePhase: 'waiting',
@@ -900,7 +930,8 @@ function resetGame() {
         edgesScore: {},
         dices: [0, 0, 0],
         lastActive: firebase.database.ServerValue.TIMESTAMP,
-        weakState: null
+        weakState: null,
+        history: []
     });
 }
 
@@ -912,7 +943,6 @@ function backToLobby() {
     currentRoom = null; playerId = null;
 }
 
-// ---------- 顯示結算（派對模式下，裁判看全局，玩家看自己；一般模式下看自己） ----------
 function showResult(data) {
     const players = data.players;
     const edgesScore = data.edgesScore || {};
@@ -920,65 +950,53 @@ function showResult(data) {
     const activePlayers = getActivePlayers(data);
     const gameMode = data.gameMode || 'normal';
 
-    // 顯示各隊伍分數統計
     const resultDiv = document.getElementById('result-players-info');
-    resultDiv.innerHTML = '';
-    activePlayers.forEach(p => {
-        const team = getTeamInfo(p, gameMode);
-        const playerEdges = Object.keys(players[p]?.edges || {});
-        const totalScore = playerEdges.reduce((sum, eid) => sum + (edgesScore[eid] || 0), 0);
-        const div = document.createElement('div');
-        div.className = 'result-player';
-        div.innerHTML = `${team.name}: ${playerEdges.length} 條邊，總分 ${totalScore}`;
-        resultDiv.appendChild(div);
-    });
+    if (resultDiv) {
+        resultDiv.innerHTML = '';
+        activePlayers.forEach(p => {
+            const team = getTeamInfo(p, gameMode);
+            const playerEdges = Object.keys(players[p]?.edges || {});
+            const totalScore = playerEdges.reduce((sum, eid) => sum + (edgesScore[eid] || 0), 0);
+            const div = document.createElement('div');
+            div.className = 'result-player';
+            div.innerHTML = `${team.name}: ${playerEdges.length} 條邊，總分 ${totalScore}`;
+            resultDiv.appendChild(div);
+        });
+    }
 
-    // 繪製結算圖形
     if (resultCtx) {
         resultCtx.clearRect(0, 0, resultCanvas.width, resultCanvas.height);
-
-        // 決定要繪製哪些邊
         const drawEdges = allEdges.filter(edge => {
             if (gameMode === 'party') {
-                // 派對模式：裁判(player1)看全局，玩家只看自己
                 if (playerId === 'player1') {
-                    return true; // 裁判看所有邊
+                    return true;
                 } else {
-                    // 玩家只看自己占的邊
                     return edgesOwner[edge.id] === playerId;
                 }
             } else {
-                // 一般模式：所有玩家只看自己占的邊
                 return edgesOwner[edge.id] === playerId;
             }
         });
-
-        // 繪製篩選後的邊
         drawEdges.forEach(edge => {
             const u = nodePos[edge.u], v = nodePos[edge.v];
             resultCtx.beginPath();
             resultCtx.moveTo(u.x, u.y);
             resultCtx.lineTo(v.x, v.y);
             resultCtx.lineWidth = 4;
-            // 邊的顏色：如果玩家自己則用隊伍色，否則（裁判看全局時）用所屬隊伍色
-            const owner = edgesOwner[edge.id];
             let color;
             if (gameMode === 'party' && playerId === 'player1') {
-                // 裁判看全局：使用隊伍色
-                if (owner) {
-                    const team = getTeamInfo(owner, gameMode);
+                if (edgesOwner[edge.id]) {
+                    const team = getTeamInfo(edgesOwner[edge.id], gameMode);
                     color = team.color;
                 } else {
-                    color = '#b0bec5'; // 未佔領
+                    color = '#b0bec5';
                 }
             } else {
-                // 玩家只看自己，顏色固定為自己隊伍色（已由 filter 保證）
                 const team = getTeamInfo(playerId, gameMode);
                 color = team.color;
             }
             resultCtx.strokeStyle = color;
             resultCtx.stroke();
-
             const score = edgesScore[edge.id];
             if (score) {
                 resultCtx.fillStyle = '#2c3e50';
@@ -986,8 +1004,6 @@ function showResult(data) {
                 resultCtx.fillText(`${edge.id}(${score})`, (u.x + v.x) / 2 - 15, (u.y + v.y) / 2 - 10);
             }
         });
-
-        // 畫節點（所有節點都畫，方便定位）
         for (let [node, pos] of Object.entries(nodePos)) {
             resultCtx.beginPath();
             resultCtx.arc(pos.x, pos.y, 20, 0, 2 * Math.PI);
