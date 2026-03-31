@@ -446,8 +446,14 @@ function updateGameUI(data) {
         }
     }
 
+    // 裁判模式：顯示回合圈圈
     if (!isPlayer && playerId === 'player1' && gameMode === 'party') {
-        document.getElementById('turn-indicator').textContent = '👨‍⚖️ 裁判模式';
+        const turnTeam = getTeamInfo(turn, gameMode);
+        const turnName = turnTeam.name;        // 藍隊、紅隊、綠隊、紫隊
+        const turnColor = turnTeam.color;
+        // 取隊伍名稱的第一個字（藍、紅、綠、紫）
+        const firstChar = turnName.charAt(0);
+        document.getElementById('turn-indicator').innerHTML = `👨‍⚖️ 裁判模式 <span class="turn-circle" style="background-color: ${turnColor}; color: white;">${firstChar}</span>`;
         document.getElementById('current-player-label').textContent = '(你是裁判)';
     } else {
         const team = getTeamInfo(turn, gameMode);
@@ -455,6 +461,7 @@ function updateGameUI(data) {
         const myTeam = getTeamInfo(playerId, gameMode);
         document.getElementById('current-player-label').textContent = `(你是 ${myTeam.name})`;
     }
+
 
     // 玩家卡片
     ALL_PLAYERS.forEach(p => {
@@ -695,9 +702,19 @@ document.getElementById('claim-buttons-container')?.addEventListener('click', (e
         if (data.gameMode === 'party') {
             const input = prompt(`請為線段 ${edgeId} 輸入三顆骰子總和 (3-18)：`);
             if (input === null) return;
-            score = parseInt(input, 10);
-            if (isNaN(score) || score < 3 || score > 18) {
-                alert('請輸入有效的數字 (3-18)');
+            // 嚴格檢查：只允許純數字（0-9）
+            if (!/^\d+$/.test(input)) {
+                alert('請輸入純數字，不可包含符號或運算');
+                return;
+            }
+            const num = parseInt(input, 10);
+            if (isNaN(num)) {
+                alert('請輸入有效的數字');
+                return;
+            }
+            score = num;
+            if (score < 3 || score > 18) {
+                alert('請輸入 3-18 之間的整數');
                 return;
             }
         } else {
@@ -900,12 +917,21 @@ document.getElementById('edge-buttons-container')?.addEventListener('click', (e)
                     : `請為線段 ${edgeId} 輸入兩顆骰子總和 (2-12)：`;
                 const input = prompt(promptMsg);
                 if (input === null) return;
-                score = parseInt(input, 10);
-                if (isNaN(score)) { alert('請輸入有效的數字'); return; }
+                // 嚴格檢查：只允許純數字（0-9）
+                if (!/^\d+$/.test(input)) {
+                    alert('請輸入純數字，不可包含符號或運算');
+                    return;
+                }
+                const num = parseInt(input, 10);
+                if (isNaN(num)) {
+                    alert('請輸入有效的數字');
+                    return;
+                }
+                score = num;
                 if (data.extraTurn && data.turn === playerId) {
-                    if (score < 1 || score > 6) { alert('請輸入 1-6 之間的數字'); return; }
+                    if (score < 1 || score > 6) { alert('請輸入 1-6 之間的整數'); return; }
                 } else {
-                    if (score < 2 || score > 12) { alert('請輸入 2-12 之間的數字'); return; }
+                    if (score < 2 || score > 12) { alert('請輸入 2-12 之間的整數'); return; }
                 }
             } else {
                 score = 0;
