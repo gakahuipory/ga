@@ -11,7 +11,6 @@ let cleanupInterval = null;
 let roomRef = null;
 
 // ---------- 地圖資料 ----------
-// 標準版節點座標 (13個)
 const standardNodes = {
     A: { x: 393, y: 96 },
     B: { x: 140, y: 120 },
@@ -28,16 +27,14 @@ const standardNodes = {
     M: { x: 507, y: 508 }
 };
 
-// 加大版節點座標 (15個) - 新增 N, O，並微調 M, H 避免重疊
 const largeNodes = {
     ...standardNodes,
-    N: { x: 140, y: 600 },   // 位於 C 下方，與 L 平行 (y=600)
-    O: { x: 393, y: 600 },   // 位於 E 下方，與 N 平行 (y=600)
+    N: { x: 140, y: 600 },
+    O: { x: 393, y: 600 },
     M: { x: 507, y: 540 },
     H: { x: 564, y: 70 }
 };
 
-// 標準版邊 (28條)
 const standardEdges = [
     { id: 'AB', u: 'A', v: 'B' }, { id: 'AC', u: 'A', v: 'C' }, { id: 'AE', u: 'A', v: 'E' }, { id: 'AH', u: 'A', v: 'H' },
     { id: 'BC', u: 'B', v: 'C' }, { id: 'BD', u: 'B', v: 'D' }, { id: 'BE', u: 'B', v: 'E' }, { id: 'BF', u: 'B', v: 'F' },
@@ -53,18 +50,16 @@ const standardEdges = [
     { id: 'LM', u: 'L', v: 'M' }
 ];
 
-// 加大版邊 (在標準基礎上新增 8 條)
 const largeEdges = [
     ...standardEdges,
     { id: 'BN', u: 'B', v: 'N' }, { id: 'CN', u: 'C', v: 'N' }, { id: 'DN', u: 'D', v: 'N' }, { id: 'NO', u: 'N', v: 'O' },
     { id: 'FO', u: 'F', v: 'O' }, { id: 'MO', u: 'M', v: 'O' }, { id: 'LO', u: 'L', v: 'O' }, { id: 'MH', u: 'M', v: 'H' }
 ];
 
-const TOTAL_EDGES_STANDARD = standardEdges.length;        // 28
-const TOTAL_EDGES_LARGE = largeEdges.length;             // 36
+const TOTAL_EDGES_STANDARD = standardEdges.length;
+const TOTAL_EDGES_LARGE = largeEdges.length;
 const ALL_PLAYERS = ['player1', 'player2', 'player3', 'player4', 'player5'];
 
-// 輔助函數：根據地圖版本取得節點和邊
 function getMapData(mapVersion) {
     if (mapVersion === 'large') {
         return { nodes: largeNodes, edges: largeEdges, totalEdges: TOTAL_EDGES_LARGE };
@@ -73,154 +68,177 @@ function getMapData(mapVersion) {
     }
 }
 
-// ---------- 綁定按鈕事件 ----------
-document.getElementById('create-btn').addEventListener('click', createRoom);
-document.getElementById('join-btn').addEventListener('click', joinRoom);
-document.getElementById('start-game-btn').addEventListener('click', startGame);
-document.getElementById('exit-room-btn').addEventListener('click', exitRoom);
-document.getElementById('waiting-exit-btn').addEventListener('click', exitRoom);
-document.getElementById('reset-game-btn').addEventListener('click', resetGame);
-document.getElementById('back-to-lobby-btn').addEventListener('click', backToLobby);
-const undoBtn = document.getElementById('undo-btn');
-if (undoBtn) undoBtn.addEventListener('click', undoLastMove);
-
-// 模式選擇事件
-const modeSelect = document.getElementById('game-mode-select');
-if (modeSelect) {
-    modeSelect.addEventListener('change', (e) => {
-        if (!currentRoom || playerId !== 'player1') return;
-        const newMode = e.target.value;
-        database.ref(`rooms/${currentRoom}/players`).once('value').then(snap => {
-            const players = snap.val() || {};
-            const joinedCount = ALL_PLAYERS.filter(p => players[p]?.joined).length;
-            if (joinedCount > 1) {
-                alert('已有其他玩家加入，無法切換模式');
-                database.ref(`rooms/${currentRoom}/gameMode`).once('value').then(s => {
-                    modeSelect.value = s.val() || 'normal';
-                });
-                return;
-            }
-            const updates = {
-                gameMode: newMode,
-                players: newMode === 'party' ? {
-                    player1: { start: null, edges: {}, joined: true },
-                    player2: { start: null, edges: {}, joined: false },
-                    player3: { start: null, edges: {}, joined: false },
-                    player4: { start: null, edges: {}, joined: false },
-                    player5: { start: null, edges: {}, joined: false }
-                } : {
-                    player1: { start: null, edges: {}, joined: true },
-                    player2: { start: null, edges: {}, joined: false },
-                    player3: { start: null, edges: {}, joined: false },
-                    player4: { start: null, edges: {}, joined: false },
-                    player5: { start: null, edges: {}, joined: false }
-                },
-                gamePhase: 'waiting',
-                turn: 'player1',
-                edgesOwner: {},
-                edgesScore: {},
-                weakState: null,
-                lastActive: firebase.database.ServerValue.TIMESTAMP,
-                history: []
-            };
-            database.ref(`rooms/${currentRoom}`).update(updates);
-        });
-    });
+// ---------- 輔助函數 ----------
+function getTeamInfo(pid, gameMode) {
+    if (gameMode === 'party') {
+        switch (pid) {
+            case 'player1': return { name: '裁判', color: '#95a5a6' };
+            case 'player2': return { name: '藍隊', color: '#3498db' };
+            case 'player3': return { name: '紅隊', color: '#e74c3c' };
+            case 'player4': return { name: '綠隊', color: '#2ecc71' };
+            case 'player5': return { name: '紫隊', color: '#9b59b6' };
+            default: return { name: pid, color: '#000' };
+        }
+    } else {
+        switch (pid) {
+            case 'player1': return { name: '藍隊', color: '#3498db' };
+            case 'player2': return { name: '紅隊', color: '#e74c3c' };
+            case 'player3': return { name: '綠隊', color: '#2ecc71' };
+            case 'player4': return { name: '紫隊', color: '#9b59b6' };
+            default: return { name: pid, color: '#000' };
+        }
+    }
 }
 
-function createRoom() {
-    const roomInput = document.getElementById('room-input').value.trim();
-    const roomError = document.getElementById('room-error-message');
-    if (!/^\d{3,7}$/.test(roomInput)) {
-        roomError.textContent = '房間號碼必須是3-7位數字';
-        return;
+function getActivePlayers(data) {
+    const mode = data.gameMode || 'normal';
+    const players = data.players;
+    if (mode === 'party') {
+        return ['player2', 'player3', 'player4', 'player5'].filter(p => players[p]?.joined);
+    } else {
+        return ['player1', 'player2', 'player3', 'player4'].filter(p => players[p]?.joined);
     }
-    roomError.textContent = '';
-    const room = roomInput;
-    currentRoom = room;
-    playerId = 'player1';
-    roomRef = firebase.database().ref(`rooms/${room}`);
-    roomRef.once('value').then(snap => {
-        if (snap.exists()) {
-            alert('房間號已存在，請使用其他號碼');
-            currentRoom = null;
+}
+
+function getNextPlayer(currentPlayer, data) {
+    const activePlayers = getActivePlayers(data);
+    const currentIndex = activePlayers.indexOf(currentPlayer);
+    return activePlayers[(currentIndex + 1) % activePlayers.length];
+}
+
+function getPlayerPointsFromData(playerId, data, allEdges, nodePos) {
+    if (!data?.players) return new Set();
+    const player = data.players[playerId];
+    if (!player) return new Set();
+    const points = new Set(player.start ? [player.start] : []);
+    Object.keys(player.edges || {}).forEach(edgeId => {
+        const edge = allEdges.find(e => e.id === edgeId);
+        if (edge) { points.add(edge.u); points.add(edge.v); }
+    });
+    return points;
+}
+
+function wouldSplitPlayerGraph(playerId, edgeId, data, allEdges) {
+    const playerEdges = Object.keys(data.players[playerId]?.edges || {});
+    if (!playerEdges.includes(edgeId)) return false;
+    const remainingEdges = playerEdges.filter(eid => eid !== edgeId);
+    if (remainingEdges.length === 0) return false;
+    const parent = {};
+    const find = (x) => {
+        if (parent[x] === undefined) parent[x] = x;
+        if (parent[x] !== x) parent[x] = find(parent[x]);
+        return parent[x];
+    };
+    const union = (a, b) => {
+        const ra = find(a), rb = find(b);
+        if (ra !== rb) parent[ra] = rb;
+    };
+    remainingEdges.forEach(eid => {
+        const edge = allEdges.find(e => e.id === eid);
+        if (edge) {
+            union(edge.u, edge.v);
+        }
+    });
+    const nodes = new Set();
+    remainingEdges.forEach(eid => {
+        const edge = allEdges.find(e => e.id === eid);
+        if (edge) {
+            nodes.add(edge.u);
+            nodes.add(edge.v);
+        }
+    });
+    const roots = new Set();
+    nodes.forEach(node => roots.add(find(node)));
+    return roots.size > 1;
+}
+
+// ---------- 歷史記錄 ----------
+function saveHistory(data) {
+    const historySnapshot = {
+        edgesOwner: JSON.parse(JSON.stringify(data.edgesOwner || {})),
+        edgesScore: JSON.parse(JSON.stringify(data.edgesScore || {})),
+        players: JSON.parse(JSON.stringify(data.players || {})),
+        turn: data.turn,
+        extraTurn: data.extraTurn === undefined ? null : data.extraTurn,
+        extraDiceCount: data.extraDiceCount === undefined ? null : data.extraDiceCount,
+        extraTurnOriginalNext: data.extraTurnOriginalNext === undefined ? null : data.extraTurnOriginalNext,
+        weakState: data.weakState === undefined ? null : data.weakState
+    };
+    const history = data.history || [];
+    history.push(historySnapshot);
+    if (history.length > 100) history.shift();
+    return history;
+}
+
+// 裁判返回上一步
+function undoLastMove() {
+    if (!currentRoom || playerId !== 'player1') return;
+    database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
+        const data = snap.val();
+        if (!data) return;
+        const gameMode = data.gameMode || 'normal';
+        if (gameMode !== 'party') {
+            alert('只有派對模式可以使用返回功能');
             return;
         }
-        const initialPlayers = {
-            player1: { start: null, edges: {}, joined: true },
-            player2: { start: null, edges: {}, joined: false },
-            player3: { start: null, edges: {}, joined: false },
-            player4: { start: null, edges: {}, joined: false },
-            player5: { start: null, edges: {}, joined: false }
+        const history = data.history || [];
+        if (history.length === 0) {
+            alert('沒有可以返回的上一步');
+            return;
+        }
+        const lastState = history[history.length - 1];
+        const updates = {
+            edgesOwner: lastState.edgesOwner || {},
+            edgesScore: lastState.edgesScore || {},
+            players: lastState.players || {},
+            turn: lastState.turn,
+            extraTurn: lastState.extraTurn === undefined ? null : lastState.extraTurn,
+            extraDiceCount: lastState.extraDiceCount === undefined ? null : lastState.extraDiceCount,
+            extraTurnOriginalNext: lastState.extraTurnOriginalNext === undefined ? null : lastState.extraTurnOriginalNext,
+            weakState: lastState.weakState === undefined ? null : lastState.weakState,
+            history: history.slice(0, -1),
+            lastActive: firebase.database.ServerValue.TIMESTAMP
         };
-        roomRef.set({
-            players: initialPlayers,
-            turn: 'player1',
-            gamePhase: 'waiting',
-            gameMode: 'normal',
-            mapVersion: 'standard',     // 預設標準地圖
-            edgesOwner: {},
-            edgesScore: {},
-            dices: [0, 0, 0],
-            lastActive: firebase.database.ServerValue.TIMESTAMP,
-            weakState: null,
-            history: []
-        }).then(() => {
-            roomRef.onDisconnect().remove();
-            document.getElementById('login-section').style.display = 'none';
-            document.getElementById('waiting-room').style.display = 'block';
-            document.getElementById('waiting-room-number').textContent = room;
-            document.getElementById('start-game-btn').style.display = 'inline-block';
-            listenRoom(room);
-            startCleanupTimer(room);
+        database.ref(`rooms/${currentRoom}`).update(updates).then(() => {
+            console.log('✅ 已返回上一步');
+        }).catch(err => {
+            console.error('❌ 返回失敗', err);
+            alert('返回失敗：' + err.message);
         });
     });
 }
 
-function joinRoom() {
-    const roomInput = document.getElementById('room-input').value.trim();
-    const roomError = document.getElementById('room-error-message');
-    if (!/^\d{3,7}$/.test(roomInput)) {
-        roomError.textContent = '房間號碼必須是3-7位數字';
-        return;
-    }
-    roomError.textContent = '';
-    const room = roomInput;
-    currentRoom = room;
-    roomRef = firebase.database().ref(`rooms/${room}`);
-    roomRef.once('value').then(snap => {
+// ---------- 遊戲開始 ----------
+function startGame() {
+    if (!currentRoom || playerId !== 'player1') return;
+    const roomRefLocal = database.ref(`rooms/${currentRoom}`);
+    roomRefLocal.once('value').then(snap => {
         const data = snap.val();
-        if (!data) { alert('房間不存在'); return; }
-        const gameMode = data.gameMode || 'normal';
-        let availablePlayers;
-        if (gameMode === 'party') {
-            availablePlayers = ['player2', 'player3', 'player4', 'player5'];
-        } else {
-            availablePlayers = ['player1', 'player2', 'player3', 'player4'];
-        }
-        let assignedPlayer = null;
-        for (let p of availablePlayers) {
-            if (!data.players[p]?.joined) {
-                assignedPlayer = p;
-                break;
+        const activePlayers = getActivePlayers(data);
+        if (activePlayers.length === 4) {
+            const gameMode = data.gameMode || 'normal';
+            if (gameMode === 'party') {
+                const choice = prompt('請選擇地圖版本：\n1 - 標準地圖\n2 - 加大地圖', '1');
+                let mapVersion = (choice === '2') ? 'large' : 'standard';
+                roomRefLocal.child('mapVersion').set(mapVersion).then(() => {
+                    roomRefLocal.child('gamePhase').set('start');
+                    roomRefLocal.child('turn').set(activePlayers[0]);
+                    roomRefLocal.child('lastActive').set(firebase.database.ServerValue.TIMESTAMP);
+                });
+            } else {
+                roomRefLocal.child('mapVersion').set('standard').then(() => {
+                    roomRefLocal.child('gamePhase').set('start');
+                    roomRefLocal.child('turn').set(activePlayers[0]);
+                    roomRefLocal.child('lastActive').set(firebase.database.ServerValue.TIMESTAMP);
+                });
             }
+        } else {
+            alert('尚未集滿四位玩家，無法開始遊戲');
         }
-        if (!assignedPlayer) { alert('房間已滿'); return; }
-        playerId = assignedPlayer;
-        const updates = {};
-        updates[`players/${assignedPlayer}/joined`] = true;
-        updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
-        roomRef.update(updates).then(() => {
-            document.getElementById('login-section').style.display = 'none';
-            document.getElementById('waiting-room').style.display = 'block';
-            document.getElementById('waiting-room-number').textContent = room;
-            document.getElementById('start-game-btn').style.display = 'none';
-            listenRoom(room);
-            startCleanupTimer(room);
-        });
     });
 }
 
+// ---------- 監聽房間 ----------
 function listenRoom(room) {
     roomRef = firebase.database().ref(`rooms/${room}`);
     roomRef.on('value', (snap) => {
@@ -255,72 +273,6 @@ function listenRoom(room) {
             }
         }
     });
-}
-
-function getActivePlayers(data) {
-    const mode = data.gameMode || 'normal';
-    const players = data.players;
-    if (mode === 'party') {
-        return ['player2', 'player3', 'player4', 'player5'].filter(p => players[p]?.joined);
-    } else {
-        return ['player1', 'player2', 'player3', 'player4'].filter(p => players[p]?.joined);
-    }
-}
-
-function handleRoomDeleted() {
-    if (cleanupInterval) {
-        clearInterval(cleanupInterval);
-        cleanupInterval = null;
-    }
-    alert('房間已移除或不存在，將返回登入畫面');
-    document.getElementById('login-section').style.display = 'block';
-    document.getElementById('waiting-room').style.display = 'none';
-    document.getElementById('game-play-section').style.display = 'none';
-    document.getElementById('result-section').style.display = 'none';
-    currentRoom = null;
-    playerId = null;
-    roomRef = null;
-}
-
-function startCleanupTimer(room) {
-    if (cleanupInterval) clearInterval(cleanupInterval);
-    cleanupInterval = setInterval(() => {
-        if (!currentRoom) return;
-        const roomRef = firebase.database().ref(`rooms/${room}`);
-        roomRef.once('value').then(snap => {
-            const data = snap.val();
-            if (!data) return;
-            const now = Date.now();
-            const lastActive = data.lastActive || 0;
-            const fiveMinutes = 5 * 60 * 1000;
-            const anyJoined = ALL_PLAYERS.some(p => data.players[p]?.joined);
-            if (!anyJoined && (now - lastActive > fiveMinutes)) {
-                console.log(`房間 ${room} 已空置超過5分鐘，自動刪除`);
-                roomRef.remove().then(() => handleRoomDeleted());
-            }
-        });
-    }, 60000);
-}
-
-function getTeamInfo(pid, gameMode) {
-    if (gameMode === 'party') {
-        switch (pid) {
-            case 'player1': return { name: '裁判', color: '#95a5a6' };
-            case 'player2': return { name: '藍隊', color: '#3498db' };
-            case 'player3': return { name: '紅隊', color: '#e74c3c' };
-            case 'player4': return { name: '綠隊', color: '#2ecc71' };
-            case 'player5': return { name: '紫隊', color: '#9b59b6' };
-            default: return { name: pid, color: '#000' };
-        }
-    } else {
-        switch (pid) {
-            case 'player1': return { name: '藍隊', color: '#3498db' };
-            case 'player2': return { name: '紅隊', color: '#e74c3c' };
-            case 'player3': return { name: '綠隊', color: '#2ecc71' };
-            case 'player4': return { name: '紫隊', color: '#9b59b6' };
-            default: return { name: pid, color: '#000' };
-        }
-    }
 }
 
 function updateWaitingRoom(data) {
@@ -449,19 +401,17 @@ function updateGameUI(data) {
     // 裁判模式：顯示回合圈圈
     if (!isPlayer && playerId === 'player1' && gameMode === 'party') {
         const turnTeam = getTeamInfo(turn, gameMode);
-        const turnName = turnTeam.name;        // 藍隊、紅隊、綠隊、紫隊
+        const turnName = turnTeam.name;
         const turnColor = turnTeam.color;
-        // 取隊伍名稱的第一個字（藍、紅、綠、紫）
         const firstChar = turnName.charAt(0);
         document.getElementById('turn-indicator').innerHTML = `👨‍⚖️ 裁判模式 <span class="turn-circle" style="background-color: ${turnColor}; color: white;">${firstChar}</span>`;
         document.getElementById('current-player-label').textContent = '(你是裁判)';
     } else {
         const team = getTeamInfo(turn, gameMode);
-        document.getElementById('turn-indicator').textContent = myTurn ? '👉 你的回合' : `👀 等待 ${team.name}`;
+        document.getElementById('turn-indicator').innerHTML = myTurn ? '👉 你的回合' : `👀 等待 ${team.name}`;
         const myTeam = getTeamInfo(playerId, gameMode);
         document.getElementById('current-player-label').textContent = `(你是 ${myTeam.name})`;
     }
-
 
     // 玩家卡片
     ALL_PLAYERS.forEach(p => {
@@ -510,7 +460,6 @@ function updateGameUI(data) {
     const weakSection = document.getElementById('weak-player-section');
 
     if (gamePhase === 'start') {
-        // 動態生成起點按鈕（根據地圖版本）
         const container = document.querySelector('.node-buttons');
         if (container) {
             container.innerHTML = '';
@@ -547,94 +496,39 @@ function updateGameUI(data) {
     drawMap(edgesOwner, players, gameMode, nodePos, allEdges);
 }
 
-// 保存歷史記錄，確保欄位不為 undefined
-function saveHistory(data) {
-    const historySnapshot = {
-        edgesOwner: JSON.parse(JSON.stringify(data.edgesOwner || {})),
-        edgesScore: JSON.parse(JSON.stringify(data.edgesScore || {})),
-        players: JSON.parse(JSON.stringify(data.players || {})),
-        turn: data.turn,
-        extraTurn: data.extraTurn === undefined ? null : data.extraTurn,
-        extraDiceCount: data.extraDiceCount === undefined ? null : data.extraDiceCount,
-        extraTurnOriginalNext: data.extraTurnOriginalNext === undefined ? null : data.extraTurnOriginalNext,
-        weakState: data.weakState === undefined ? null : data.weakState
-    };
-    const history = data.history || [];
-    history.push(historySnapshot);
-    if (history.length > 100) history.shift();
-    return history;
-}
-
-// 裁判返回上一步
-function undoLastMove() {
-    if (!currentRoom || playerId !== 'player1') return;
-    database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
-        const data = snap.val();
-        if (!data) return;
-        const gameMode = data.gameMode || 'normal';
-        if (gameMode !== 'party') {
-            alert('只有派對模式可以使用返回功能');
-            return;
+function generateEdgeButtons(data, allEdges, nodePos) {
+    const edgesOwner = data.edgesOwner || {};
+    const players = data.players;
+    const edgesScore = data.edgesScore || {};
+    if (!players[playerId]) return;
+    const playerPoints = getPlayerPointsFromData(playerId, data, allEdges, nodePos);
+    const container = document.getElementById('edge-buttons-container');
+    if (!container) return;
+    container.innerHTML = '';
+    const emptyEdges = allEdges.filter(edge => !edgesOwner[edge.id]);
+    let availableEdges = emptyEdges.filter(edge => playerPoints.has(edge.u) || playerPoints.has(edge.v));
+    if (availableEdges.length === 0 && myTurn) {
+        if (data.gamePhase === 'playing') {
+            roomRef.child('gamePhase').set('weak_claim').then(() => {
+                roomRef.child('weakState').set({ weakPlayer: playerId, timestamp: Date.now() });
+            });
         }
-        const history = data.history || [];
-        if (history.length === 0) {
-            alert('沒有可以返回的上一步');
-            return;
-        }
-        const lastState = history[history.length - 1];
-        const updates = {
-            edgesOwner: lastState.edgesOwner || {},
-            edgesScore: lastState.edgesScore || {},
-            players: lastState.players || {},
-            turn: lastState.turn,
-            extraTurn: lastState.extraTurn === undefined ? null : lastState.extraTurn,
-            extraDiceCount: lastState.extraDiceCount === undefined ? null : lastState.extraDiceCount,
-            extraTurnOriginalNext: lastState.extraTurnOriginalNext === undefined ? null : lastState.extraTurnOriginalNext,
-            weakState: lastState.weakState === undefined ? null : lastState.weakState,
-            history: history.slice(0, -1),
-            lastActive: firebase.database.ServerValue.TIMESTAMP
-        };
-        database.ref(`rooms/${currentRoom}`).update(updates).then(() => {
-            console.log('✅ 已返回上一步');
-        }).catch(err => {
-            console.error('❌ 返回失敗', err);
-            alert('返回失敗：' + err.message);
-        });
+        container.innerHTML = '<p>你已無邊可佔，進入弱勢申請階段⋯</p>';
+        return;
+    }
+    if (availableEdges.length === 0) {
+        container.innerHTML = '<p>沒有可佔領的邊</p>';
+        return;
+    }
+    availableEdges.forEach(edge => {
+        const btn = document.createElement('button');
+        btn.className = 'edge-button';
+        btn.dataset.edgeId = edge.id;
+        const score = edgesScore[edge.id];
+        btn.textContent = score ? `${edge.id} (${score})` : edge.id;
+        if (!myTurn) btn.disabled = true;
+        container.appendChild(btn);
     });
-}
-
-function wouldSplitPlayerGraph(playerId, edgeId, data, allEdges) {
-    const playerEdges = Object.keys(data.players[playerId]?.edges || {});
-    if (!playerEdges.includes(edgeId)) return false;
-    const remainingEdges = playerEdges.filter(eid => eid !== edgeId);
-    if (remainingEdges.length === 0) return false;
-    const parent = {};
-    const find = (x) => {
-        if (parent[x] === undefined) parent[x] = x;
-        if (parent[x] !== x) parent[x] = find(parent[x]);
-        return parent[x];
-    };
-    const union = (a, b) => {
-        const ra = find(a), rb = find(b);
-        if (ra !== rb) parent[ra] = rb;
-    };
-    remainingEdges.forEach(eid => {
-        const edge = allEdges.find(e => e.id === eid);
-        if (edge) {
-            union(edge.u, edge.v);
-        }
-    });
-    const nodes = new Set();
-    remainingEdges.forEach(eid => {
-        const edge = allEdges.find(e => e.id === eid);
-        if (edge) {
-            nodes.add(edge.u);
-            nodes.add(edge.v);
-        }
-    });
-    const roots = new Set();
-    nodes.forEach(node => roots.add(find(node)));
-    return roots.size > 1;
 }
 
 function generateClaimButtons(data, allEdges, nodePos) {
@@ -674,122 +568,6 @@ function generateClaimButtons(data, allEdges, nodePos) {
     });
     const info = document.getElementById('claim-info');
     if (info) info.textContent = '點擊申請佔領該邊（派對模式需手動輸入分數）';
-}
-
-document.getElementById('claim-buttons-container')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('.claim-button');
-    if (!btn) return;
-    const edgeId = btn.dataset.edgeId;
-    if (!edgeId || !currentRoom) return;
-    database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
-        const data = snap.val();
-        if (!data || data.gamePhase !== 'weak_claim') return;
-        const weakState = data.weakState;
-        if (!weakState || weakState.weakPlayer !== playerId) return;
-        const mapVersion = data.mapVersion || 'standard';
-        const mapData = getMapData(mapVersion);
-        const allEdges = mapData.edges;
-        const edgesOwner = data.edgesOwner || {};
-        const edge = allEdges.find(e => e.id === edgeId);
-        if (!edge) return;
-        const owner = edgesOwner[edgeId];
-        if (!owner || owner === playerId) return;
-        if (wouldSplitPlayerGraph(owner, edgeId, data, allEdges)) {
-            alert('此邊會使對方圖形分裂成兩個有邊的部分，不能申請！');
-            return;
-        }
-        let score;
-        if (data.gameMode === 'party') {
-            const input = prompt(`請為線段 ${edgeId} 輸入三顆骰子總和 (3-18)：`);
-            if (input === null) return;
-            // 嚴格檢查：只允許純數字（0-9）
-            if (!/^\d+$/.test(input)) {
-                alert('請輸入純數字，不可包含符號或運算');
-                return;
-            }
-            const num = parseInt(input, 10);
-            if (isNaN(num)) {
-                alert('請輸入有效的數字');
-                return;
-            }
-            score = num;
-            if (score < 3 || score > 18) {
-                alert('請輸入 3-18 之間的整數');
-                return;
-            }
-        } else {
-            const dice1 = Math.floor(Math.random() * 6) + 1;
-            const dice2 = Math.floor(Math.random() * 6) + 1;
-            const dice3 = Math.floor(Math.random() * 6) + 1;
-            score = dice1 + dice2 + dice3;
-        }
-        const activePlayers = getActivePlayers(data);
-        const currentIndex = activePlayers.indexOf(playerId);
-        const nextIndex = (currentIndex + 1) % activePlayers.length;
-        const weakPlayerNext = activePlayers[nextIndex];
-        const updates = {};
-        updates[`edgesOwner/${edgeId}`] = playerId;
-        updates[`edgesScore/${edgeId}`] = score;
-        updates[`players/${playerId}/edges/${edgeId}`] = true;
-        updates[`players/${owner}/edges/${edgeId}`] = null;
-        updates.turn = owner;
-        updates.extraTurn = true;
-        updates.extraDiceCount = 1;
-        updates.extraTurnOriginalNext = weakPlayerNext;
-        updates.weakState = null;
-        updates.gamePhase = 'playing';
-        updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
-        const history = saveHistory(data);
-        updates.history = history;
-        database.ref(`rooms/${currentRoom}`).update(updates);
-    });
-});
-
-function getPlayerPointsFromData(playerId, data, allEdges, nodePos) {
-    if (!data?.players) return new Set();
-    const player = data.players[playerId];
-    if (!player) return new Set();
-    const points = new Set(player.start ? [player.start] : []);
-    Object.keys(player.edges || {}).forEach(edgeId => {
-        const edge = allEdges.find(e => e.id === edgeId);
-        if (edge) { points.add(edge.u); points.add(edge.v); }
-    });
-    return points;
-}
-
-function generateEdgeButtons(data, allEdges, nodePos) {
-    const edgesOwner = data.edgesOwner || {};
-    const players = data.players;
-    const edgesScore = data.edgesScore || {};
-    if (!players[playerId]) return;
-    const playerPoints = getPlayerPointsFromData(playerId, data, allEdges, nodePos);
-    const container = document.getElementById('edge-buttons-container');
-    if (!container) return;
-    container.innerHTML = '';
-    const emptyEdges = allEdges.filter(edge => !edgesOwner[edge.id]);
-    let availableEdges = emptyEdges.filter(edge => playerPoints.has(edge.u) || playerPoints.has(edge.v));
-    if (availableEdges.length === 0 && myTurn) {
-        if (data.gamePhase === 'playing') {
-            roomRef.child('gamePhase').set('weak_claim').then(() => {
-                roomRef.child('weakState').set({ weakPlayer: playerId, timestamp: Date.now() });
-            });
-        }
-        container.innerHTML = '<p>你已無邊可佔，進入弱勢申請階段⋯</p>';
-        return;
-    }
-    if (availableEdges.length === 0) {
-        container.innerHTML = '<p>沒有可佔領的邊</p>';
-        return;
-    }
-    availableEdges.forEach(edge => {
-        const btn = document.createElement('button');
-        btn.className = 'edge-button';
-        btn.dataset.edgeId = edge.id;
-        const score = edgesScore[edge.id];
-        btn.textContent = score ? `${edge.id} (${score})` : edge.id;
-        if (!myTurn) btn.disabled = true;
-        container.appendChild(btn);
-    });
 }
 
 function drawMap(edgesOwner, players, gameMode, nodePos, allEdges) {
@@ -844,188 +622,6 @@ function drawMap(edgesOwner, players, gameMode, nodePos, allEdges) {
     });
 }
 
-// ---------- 開始遊戲按鈕（裁判可選擇地圖）----------
-function startGame() {
-    if (!currentRoom || playerId !== 'player1') return;
-    const roomRefLocal = database.ref(`rooms/${currentRoom}`);
-    roomRefLocal.once('value').then(snap => {
-        const data = snap.val();
-        const activePlayers = getActivePlayers(data);
-        if (activePlayers.length === 4) {
-            const gameMode = data.gameMode || 'normal';
-            if (gameMode === 'party') {
-                // 派對模式：裁判選擇地圖
-                const choice = prompt('請選擇地圖版本：\n1 - 標準地圖\n2 - 加大地圖', '1');
-                let mapVersion = (choice === '2') ? 'large' : 'standard';
-                roomRefLocal.child('mapVersion').set(mapVersion).then(() => {
-                    roomRefLocal.child('gamePhase').set('start');
-                    roomRefLocal.child('turn').set(activePlayers[0]);
-                    roomRefLocal.child('lastActive').set(firebase.database.ServerValue.TIMESTAMP);
-                });
-            } else {
-                // 一般模式固定標準地圖
-                roomRefLocal.child('mapVersion').set('standard').then(() => {
-                    roomRefLocal.child('gamePhase').set('start');
-                    roomRefLocal.child('turn').set(activePlayers[0]);
-                    roomRefLocal.child('lastActive').set(firebase.database.ServerValue.TIMESTAMP);
-                });
-            }
-        } else {
-            alert('尚未集滿四位玩家，無法開始遊戲');
-        }
-    });
-}
-
-document.getElementById('edge-buttons-container')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('.edge-button');
-    if (!btn) return;
-    if (!currentRoom || !myTurn) { alert('現在不是你的回合'); return; }
-    const edgeId = btn.dataset.edgeId;
-    if (!edgeId) return;
-    database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
-        try {
-            const data = snap.val();
-            if (!data) { alert('房間資料不存在'); return; }
-            if (data.gamePhase !== 'playing') { alert('遊戲不在進行中'); return; }
-            const mapVersion = data.mapVersion || 'standard';
-            const mapData = getMapData(mapVersion);
-            const allEdges = mapData.edges;
-            const totalEdges = mapData.totalEdges;
-            const nodePos = mapData.nodes;
-
-            const edgesOwner = data.edgesOwner || {};
-            if (edgesOwner[edgeId]) { alert('這條邊已被佔'); return; }
-            const playerPoints = getPlayerPointsFromData(playerId, data, allEdges, nodePos);
-            const edge = allEdges.find(e => e.id === edgeId);
-            if (!edge) return;
-            if (!playerPoints.has(edge.u) && !playerPoints.has(edge.v)) {
-                alert('你不能佔領這條邊：它與你的現有區域不相連');
-                return;
-            }
-            let diceCount = 2, nextPlayer, score;
-            const activePlayers = getActivePlayers(data);
-            const currentIndex = activePlayers.indexOf(playerId);
-            if (data.extraTurn && data.turn === playerId) {
-                diceCount = data.extraDiceCount || 1;
-                nextPlayer = data.extraTurnOriginalNext;
-            } else {
-                nextPlayer = activePlayers[(currentIndex + 1) % activePlayers.length];
-            }
-            if (data.gameMode === 'party') {
-                const promptMsg = data.extraTurn && data.turn === playerId
-                    ? `請為線段 ${edgeId} 輸入一顆骰子點數 (1-6)：`
-                    : `請為線段 ${edgeId} 輸入兩顆骰子總和 (2-12)：`;
-                const input = prompt(promptMsg);
-                if (input === null) return;
-                // 嚴格檢查：只允許純數字（0-9）
-                if (!/^\d+$/.test(input)) {
-                    alert('請輸入純數字，不可包含符號或運算');
-                    return;
-                }
-                const num = parseInt(input, 10);
-                if (isNaN(num)) {
-                    alert('請輸入有效的數字');
-                    return;
-                }
-                score = num;
-                if (data.extraTurn && data.turn === playerId) {
-                    if (score < 1 || score > 6) { alert('請輸入 1-6 之間的整數'); return; }
-                } else {
-                    if (score < 2 || score > 12) { alert('請輸入 2-12 之間的整數'); return; }
-                }
-            } else {
-                score = 0;
-                for (let i = 0; i < diceCount; i++) score += Math.floor(Math.random() * 6) + 1;
-            }
-            const updates = {};
-            updates[`edgesOwner/${edgeId}`] = playerId;
-            updates[`edgesScore/${edgeId}`] = score;
-            updates[`players/${playerId}/edges/${edgeId}`] = true;
-            updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
-            if (data.extraTurn && data.turn === playerId) {
-                updates.extraTurn = null;
-                updates.extraDiceCount = null;
-                updates.extraTurnOriginalNext = null;
-            }
-            updates.turn = nextPlayer;
-            const newOwnerCount = Object.keys(data.edgesOwner || {}).length + 1;
-            if (newOwnerCount === totalEdges) updates.gamePhase = 'ended';
-            const history = saveHistory(data);
-            updates.history = history;
-            database.ref(`rooms/${currentRoom}`).update(updates).then(() => console.log('✅ 更新成功'));
-        } catch (err) {
-            console.error('❌ 錯誤', err);
-            alert('發生錯誤：' + err.message);
-        }
-    }).catch(err => console.error('❌ 讀取失敗', err));
-});
-
-document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('start-node')) {
-        const node = e.target.dataset.node;
-        if (!currentRoom || !playerId) return;
-        database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
-            const data = snap.val();
-            if (data.gamePhase === 'start' && !data.players[playerId]?.start) {
-                const updates = {};
-                updates[`players/${playerId}/start`] = node;
-                updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
-                database.ref(`rooms/${currentRoom}`).update(updates);
-            }
-        });
-    }
-});
-
-function exitRoom() {
-    if (!currentRoom || !playerId) return;
-    const roomRefLocal = firebase.database().ref(`rooms/${currentRoom}`);
-    if (playerId === 'player1') {
-        roomRefLocal.remove().then(() => handleRoomDeleted());
-    } else {
-        const updates = {};
-        updates[`players/${playerId}/joined`] = false;
-        updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
-        roomRefLocal.update(updates).then(() => {
-            if (roomRef) roomRef.off();
-            if (cleanupInterval) clearInterval(cleanupInterval);
-            document.getElementById('login-section').style.display = 'block';
-            document.getElementById('waiting-room').style.display = 'none';
-            document.getElementById('game-play-section').style.display = 'none';
-            document.getElementById('result-section').style.display = 'none';
-            currentRoom = null; playerId = null; roomRef = null;
-        });
-    }
-}
-
-function resetGame() {
-    if (!currentRoom) return;
-    const resetPlayers = {};
-    ALL_PLAYERS.forEach((p, index) => {
-        resetPlayers[p] = { start: null, edges: {}, joined: index === 0 };
-    });
-    database.ref(`rooms/${currentRoom}`).set({
-        players: resetPlayers,
-        turn: 'player1',
-        gamePhase: 'waiting',
-        gameMode: 'normal',
-        mapVersion: 'standard',
-        edgesOwner: {},
-        edgesScore: {},
-        dices: [0, 0, 0],
-        lastActive: firebase.database.ServerValue.TIMESTAMP,
-        weakState: null,
-        history: []
-    });
-}
-
-function backToLobby() {
-    document.getElementById('result-section').style.display = 'none';
-    document.getElementById('login-section').style.display = 'block';
-    if (roomRef) { roomRef.off(); roomRef = null; }
-    if (cleanupInterval) clearInterval(cleanupInterval);
-    currentRoom = null; playerId = null;
-}
-
 function showResult(data) {
     const players = data.players;
     const edgesScore = data.edgesScore || {};
@@ -1037,6 +633,7 @@ function showResult(data) {
     const allEdges = mapData.edges;
     const nodePos = mapData.nodes;
 
+    // 顯示各玩家總分與邊數
     const resultDiv = document.getElementById('result-players-info');
     if (resultDiv) {
         resultDiv.innerHTML = '';
@@ -1051,6 +648,7 @@ function showResult(data) {
         });
     }
 
+    // 繪製圖形
     if (resultCtx) {
         resultCtx.clearRect(0, 0, resultCanvas.width, resultCanvas.height);
         const drawEdges = allEdges.filter(edge => {
@@ -1108,4 +706,440 @@ function showResult(data) {
             resultCtx.fillText(node, pos.x - 8, pos.y + 6);
         }
     }
+
+    // 邊成本列表（僅派對模式）
+    const listContainer = document.getElementById('edge-cost-list-container');
+    const listDiv = document.getElementById('edge-cost-list');
+    if (gameMode === 'party') {
+        listContainer.style.display = 'block';
+        let edgesToShow = [];
+        if (playerId === 'player1') {
+            edgesToShow = allEdges.filter(edge => edgesOwner[edge.id]);
+        } else {
+            edgesToShow = allEdges.filter(edge => edgesOwner[edge.id] === playerId);
+        }
+        edgesToShow.sort((a, b) => a.id.localeCompare(b.id));
+        listDiv.innerHTML = '';
+        edgesToShow.forEach(edge => {
+            const score = edgesScore[edge.id];
+            const owner = edgesOwner[edge.id];
+            let displayText = `${edge.id}：${score}`;
+            if (playerId === 'player1') {
+                const team = getTeamInfo(owner, gameMode);
+                displayText = `${edge.id}：${score} (${team.name})`;
+            }
+            const item = document.createElement('div');
+            item.className = 'edge-cost-item';
+            if (playerId === 'player1' && owner) {
+                const team = getTeamInfo(owner, gameMode);
+                item.style.borderLeftColor = team.color;
+            } else if (playerId !== 'player1') {
+                const myTeam = getTeamInfo(playerId, gameMode);
+                item.style.borderLeftColor = myTeam.color;
+            } else {
+                item.style.borderLeftColor = '#b0bec5';
+            }
+            item.innerHTML = `<span class="edge-id">${displayText}</span>`;
+            listDiv.appendChild(item);
+        });
+        if (edgesToShow.length === 0) {
+            listDiv.innerHTML = '<p style="text-align:center;">沒有佔領任何邊</p>';
+        }
+    } else {
+        listContainer.style.display = 'none';
+    }
+}
+
+// ---------- 事件監聽 ----------
+document.getElementById('create-btn').addEventListener('click', createRoom);
+document.getElementById('join-btn').addEventListener('click', joinRoom);
+document.getElementById('start-game-btn').addEventListener('click', startGame);
+document.getElementById('exit-room-btn').addEventListener('click', exitRoom);
+document.getElementById('waiting-exit-btn').addEventListener('click', exitRoom);
+document.getElementById('reset-game-btn').addEventListener('click', resetGame);
+document.getElementById('back-to-lobby-btn').addEventListener('click', backToLobby);
+const undoBtn = document.getElementById('undo-btn');
+if (undoBtn) undoBtn.addEventListener('click', undoLastMove);
+
+// 模式選擇事件
+const modeSelect = document.getElementById('game-mode-select');
+if (modeSelect) {
+    modeSelect.addEventListener('change', (e) => {
+        if (!currentRoom || playerId !== 'player1') return;
+        const newMode = e.target.value;
+        database.ref(`rooms/${currentRoom}/players`).once('value').then(snap => {
+            const players = snap.val() || {};
+            const joinedCount = ALL_PLAYERS.filter(p => players[p]?.joined).length;
+            if (joinedCount > 1) {
+                alert('已有其他玩家加入，無法切換模式');
+                database.ref(`rooms/${currentRoom}/gameMode`).once('value').then(s => {
+                    modeSelect.value = s.val() || 'normal';
+                });
+                return;
+            }
+            const updates = {
+                gameMode: newMode,
+                players: newMode === 'party' ? {
+                    player1: { start: null, edges: {}, joined: true },
+                    player2: { start: null, edges: {}, joined: false },
+                    player3: { start: null, edges: {}, joined: false },
+                    player4: { start: null, edges: {}, joined: false },
+                    player5: { start: null, edges: {}, joined: false }
+                } : {
+                    player1: { start: null, edges: {}, joined: true },
+                    player2: { start: null, edges: {}, joined: false },
+                    player3: { start: null, edges: {}, joined: false },
+                    player4: { start: null, edges: {}, joined: false },
+                    player5: { start: null, edges: {}, joined: false }
+                },
+                gamePhase: 'waiting',
+                turn: 'player1',
+                edgesOwner: {},
+                edgesScore: {},
+                weakState: null,
+                lastActive: firebase.database.ServerValue.TIMESTAMP,
+                history: []
+            };
+            database.ref(`rooms/${currentRoom}`).update(updates);
+        });
+    });
+}
+
+document.getElementById('edge-buttons-container')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.edge-button');
+    if (!btn) return;
+    if (!currentRoom || !myTurn) { alert('現在不是你的回合'); return; }
+    const edgeId = btn.dataset.edgeId;
+    if (!edgeId) return;
+    database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
+        try {
+            const data = snap.val();
+            if (!data) { alert('房間資料不存在'); return; }
+            if (data.gamePhase !== 'playing') { alert('遊戲不在進行中'); return; }
+            const mapVersion = data.mapVersion || 'standard';
+            const mapData = getMapData(mapVersion);
+            const allEdges = mapData.edges;
+            const totalEdges = mapData.totalEdges;
+            const nodePos = mapData.nodes;
+
+            const edgesOwner = data.edgesOwner || {};
+            if (edgesOwner[edgeId]) { alert('這條邊已被佔'); return; }
+            const playerPoints = getPlayerPointsFromData(playerId, data, allEdges, nodePos);
+            const edge = allEdges.find(e => e.id === edgeId);
+            if (!edge) return;
+            if (!playerPoints.has(edge.u) && !playerPoints.has(edge.v)) {
+                alert('你不能佔領這條邊：它與你的現有區域不相連');
+                return;
+            }
+            let diceCount = 2, nextPlayer, score;
+            const activePlayers = getActivePlayers(data);
+            const currentIndex = activePlayers.indexOf(playerId);
+            if (data.extraTurn && data.turn === playerId) {
+                diceCount = data.extraDiceCount || 1;
+                nextPlayer = data.extraTurnOriginalNext;
+            } else {
+                nextPlayer = activePlayers[(currentIndex + 1) % activePlayers.length];
+            }
+            if (data.gameMode === 'party') {
+                const promptMsg = data.extraTurn && data.turn === playerId
+                    ? `請為線段 ${edgeId} 輸入一顆骰子點數 (1-6)：`
+                    : `請為線段 ${edgeId} 輸入兩顆骰子總和 (2-12)：`;
+                const input = prompt(promptMsg);
+                if (input === null) return;
+                if (!/^\d+$/.test(input)) {
+                    alert('請輸入純數字，不可包含符號或運算');
+                    return;
+                }
+                const num = parseInt(input, 10);
+                if (isNaN(num)) { alert('請輸入有效的數字'); return; }
+                score = num;
+                if (data.extraTurn && data.turn === playerId) {
+                    if (score < 1 || score > 6) { alert('請輸入 1-6 之間的整數'); return; }
+                } else {
+                    if (score < 2 || score > 12) { alert('請輸入 2-12 之間的整數'); return; }
+                }
+            } else {
+                score = 0;
+                for (let i = 0; i < diceCount; i++) score += Math.floor(Math.random() * 6) + 1;
+            }
+            const updates = {};
+            updates[`edgesOwner/${edgeId}`] = playerId;
+            updates[`edgesScore/${edgeId}`] = score;
+            updates[`players/${playerId}/edges/${edgeId}`] = true;
+            updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
+            if (data.extraTurn && data.turn === playerId) {
+                updates.extraTurn = null;
+                updates.extraDiceCount = null;
+                updates.extraTurnOriginalNext = null;
+            }
+            updates.turn = nextPlayer;
+            const newOwnerCount = Object.keys(data.edgesOwner || {}).length + 1;
+            if (newOwnerCount === totalEdges) updates.gamePhase = 'ended';
+            const history = saveHistory(data);
+            updates.history = history;
+            database.ref(`rooms/${currentRoom}`).update(updates).then(() => console.log('✅ 更新成功'));
+        } catch (err) {
+            console.error('❌ 錯誤', err);
+            alert('發生錯誤：' + err.message);
+        }
+    }).catch(err => console.error('❌ 讀取失敗', err));
+});
+
+document.getElementById('claim-buttons-container')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.claim-button');
+    if (!btn) return;
+    const edgeId = btn.dataset.edgeId;
+    if (!edgeId || !currentRoom) return;
+    database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
+        const data = snap.val();
+        if (!data || data.gamePhase !== 'weak_claim') return;
+        const weakState = data.weakState;
+        if (!weakState || weakState.weakPlayer !== playerId) return;
+        const mapVersion = data.mapVersion || 'standard';
+        const mapData = getMapData(mapVersion);
+        const allEdges = mapData.edges;
+        const edgesOwner = data.edgesOwner || {};
+        const edge = allEdges.find(e => e.id === edgeId);
+        if (!edge) return;
+        const owner = edgesOwner[edgeId];
+        if (!owner || owner === playerId) return;
+        if (wouldSplitPlayerGraph(owner, edgeId, data, allEdges)) {
+            alert('此邊會使對方圖形分裂成兩個有邊的部分，不能申請！');
+            return;
+        }
+        let score;
+        if (data.gameMode === 'party') {
+            const input = prompt(`請為線段 ${edgeId} 輸入三顆骰子總和 (3-18)：`);
+            if (input === null) return;
+            if (!/^\d+$/.test(input)) {
+                alert('請輸入純數字，不可包含符號或運算');
+                return;
+            }
+            const num = parseInt(input, 10);
+            if (isNaN(num)) { alert('請輸入有效的數字'); return; }
+            score = num;
+            if (score < 3 || score > 18) {
+                alert('請輸入 3-18 之間的整數');
+                return;
+            }
+        } else {
+            const dice1 = Math.floor(Math.random() * 6) + 1;
+            const dice2 = Math.floor(Math.random() * 6) + 1;
+            const dice3 = Math.floor(Math.random() * 6) + 1;
+            score = dice1 + dice2 + dice3;
+        }
+        const activePlayers = getActivePlayers(data);
+        const currentIndex = activePlayers.indexOf(playerId);
+        const nextIndex = (currentIndex + 1) % activePlayers.length;
+        const weakPlayerNext = activePlayers[nextIndex];
+        const updates = {};
+        updates[`edgesOwner/${edgeId}`] = playerId;
+        updates[`edgesScore/${edgeId}`] = score;
+        updates[`players/${playerId}/edges/${edgeId}`] = true;
+        updates[`players/${owner}/edges/${edgeId}`] = null;
+        updates.turn = owner;
+        updates.extraTurn = true;
+        updates.extraDiceCount = 1;
+        updates.extraTurnOriginalNext = weakPlayerNext;
+        updates.weakState = null;
+        updates.gamePhase = 'playing';
+        updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
+        const history = saveHistory(data);
+        updates.history = history;
+        database.ref(`rooms/${currentRoom}`).update(updates);
+    });
+});
+
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('start-node')) {
+        const node = e.target.dataset.node;
+        if (!currentRoom || !playerId) return;
+        database.ref(`rooms/${currentRoom}`).once('value').then(snap => {
+            const data = snap.val();
+            if (data.gamePhase === 'start' && !data.players[playerId]?.start) {
+                const updates = {};
+                updates[`players/${playerId}/start`] = node;
+                updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
+                database.ref(`rooms/${currentRoom}`).update(updates);
+            }
+        });
+    }
+});
+
+function createRoom() {
+    const roomInput = document.getElementById('room-input').value.trim();
+    const roomError = document.getElementById('room-error-message');
+    if (!/^\d{3,7}$/.test(roomInput)) {
+        roomError.textContent = '房間號碼必須是3-7位數字';
+        return;
+    }
+    roomError.textContent = '';
+    const room = roomInput;
+    currentRoom = room;
+    playerId = 'player1';
+    roomRef = firebase.database().ref(`rooms/${room}`);
+    roomRef.once('value').then(snap => {
+        if (snap.exists()) {
+            alert('房間號已存在，請使用其他號碼');
+            currentRoom = null;
+            return;
+        }
+        const initialPlayers = {
+            player1: { start: null, edges: {}, joined: true },
+            player2: { start: null, edges: {}, joined: false },
+            player3: { start: null, edges: {}, joined: false },
+            player4: { start: null, edges: {}, joined: false },
+            player5: { start: null, edges: {}, joined: false }
+        };
+        roomRef.set({
+            players: initialPlayers,
+            turn: 'player1',
+            gamePhase: 'waiting',
+            gameMode: 'normal',
+            mapVersion: 'standard',
+            edgesOwner: {},
+            edgesScore: {},
+            dices: [0, 0, 0],
+            lastActive: firebase.database.ServerValue.TIMESTAMP,
+            weakState: null,
+            history: []
+        }).then(() => {
+            roomRef.onDisconnect().remove();
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('waiting-room').style.display = 'block';
+            document.getElementById('waiting-room-number').textContent = room;
+            document.getElementById('start-game-btn').style.display = 'inline-block';
+            listenRoom(room);
+            startCleanupTimer(room);
+        });
+    });
+}
+
+function joinRoom() {
+    const roomInput = document.getElementById('room-input').value.trim();
+    const roomError = document.getElementById('room-error-message');
+    if (!/^\d{3,7}$/.test(roomInput)) {
+        roomError.textContent = '房間號碼必須是3-7位數字';
+        return;
+    }
+    roomError.textContent = '';
+    const room = roomInput;
+    currentRoom = room;
+    roomRef = firebase.database().ref(`rooms/${room}`);
+    roomRef.once('value').then(snap => {
+        const data = snap.val();
+        if (!data) { alert('房間不存在'); return; }
+        const gameMode = data.gameMode || 'normal';
+        let availablePlayers;
+        if (gameMode === 'party') {
+            availablePlayers = ['player2', 'player3', 'player4', 'player5'];
+        } else {
+            availablePlayers = ['player1', 'player2', 'player3', 'player4'];
+        }
+        let assignedPlayer = null;
+        for (let p of availablePlayers) {
+            if (!data.players[p]?.joined) {
+                assignedPlayer = p;
+                break;
+            }
+        }
+        if (!assignedPlayer) { alert('房間已滿'); return; }
+        playerId = assignedPlayer;
+        const updates = {};
+        updates[`players/${assignedPlayer}/joined`] = true;
+        updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
+        roomRef.update(updates).then(() => {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('waiting-room').style.display = 'block';
+            document.getElementById('waiting-room-number').textContent = room;
+            document.getElementById('start-game-btn').style.display = 'none';
+            listenRoom(room);
+            startCleanupTimer(room);
+        });
+    });
+}
+
+function exitRoom() {
+    if (!currentRoom || !playerId) return;
+    const roomRefLocal = firebase.database().ref(`rooms/${currentRoom}`);
+    if (playerId === 'player1') {
+        roomRefLocal.remove().then(() => handleRoomDeleted());
+    } else {
+        const updates = {};
+        updates[`players/${playerId}/joined`] = false;
+        updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
+        roomRefLocal.update(updates).then(() => {
+            if (roomRef) roomRef.off();
+            if (cleanupInterval) clearInterval(cleanupInterval);
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('waiting-room').style.display = 'none';
+            document.getElementById('game-play-section').style.display = 'none';
+            document.getElementById('result-section').style.display = 'none';
+            currentRoom = null; playerId = null; roomRef = null;
+        });
+    }
+}
+
+function resetGame() {
+    if (!currentRoom) return;
+    const resetPlayers = {};
+    ALL_PLAYERS.forEach((p, index) => {
+        resetPlayers[p] = { start: null, edges: {}, joined: index === 0 };
+    });
+    database.ref(`rooms/${currentRoom}`).set({
+        players: resetPlayers,
+        turn: 'player1',
+        gamePhase: 'waiting',
+        gameMode: 'normal',
+        mapVersion: 'standard',
+        edgesOwner: {},
+        edgesScore: {},
+        dices: [0, 0, 0],
+        lastActive: firebase.database.ServerValue.TIMESTAMP,
+        weakState: null,
+        history: []
+    });
+}
+
+function backToLobby() {
+    document.getElementById('result-section').style.display = 'none';
+    document.getElementById('login-section').style.display = 'block';
+    if (roomRef) { roomRef.off(); roomRef = null; }
+    if (cleanupInterval) clearInterval(cleanupInterval);
+    currentRoom = null; playerId = null;
+}
+
+function handleRoomDeleted() {
+    if (cleanupInterval) {
+        clearInterval(cleanupInterval);
+        cleanupInterval = null;
+    }
+    alert('房間已移除或不存在，將返回登入畫面');
+    document.getElementById('login-section').style.display = 'block';
+    document.getElementById('waiting-room').style.display = 'none';
+    document.getElementById('game-play-section').style.display = 'none';
+    document.getElementById('result-section').style.display = 'none';
+    currentRoom = null;
+    playerId = null;
+    roomRef = null;
+}
+
+function startCleanupTimer(room) {
+    if (cleanupInterval) clearInterval(cleanupInterval);
+    cleanupInterval = setInterval(() => {
+        if (!currentRoom) return;
+        const roomRef = firebase.database().ref(`rooms/${room}`);
+        roomRef.once('value').then(snap => {
+            const data = snap.val();
+            if (!data) return;
+            const now = Date.now();
+            const lastActive = data.lastActive || 0;
+            const fiveMinutes = 5 * 60 * 1000;
+            const anyJoined = ALL_PLAYERS.some(p => data.players[p]?.joined);
+            if (!anyJoined && (now - lastActive > fiveMinutes)) {
+                console.log(`房間 ${room} 已空置超過5分鐘，自動刪除`);
+                roomRef.remove().then(() => handleRoomDeleted());
+            }
+        });
+    }, 60000);
 }
