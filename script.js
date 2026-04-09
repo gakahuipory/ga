@@ -106,6 +106,15 @@ function getNextPlayer(currentPlayer, data) {
     return activePlayers[(currentIndex + 1) % activePlayers.length];
 }
 
+// 檢查是否為新一輪（回合輪到第一個玩家）
+function isNewRound(turn, prevTurn, data) {
+    const activePlayers = getActivePlayers(data);
+    if (activePlayers.length === 0) return false;
+    const firstPlayer = activePlayers[0];
+    // 若當前回合為第一個玩家，且上一回合不是第一個玩家（或者沒有上一回合），則視為新一輪
+    return turn === firstPlayer && prevTurn !== firstPlayer;
+}
+
 function getPlayerPointsFromData(playerId, data, allEdges, nodePos) {
     if (!data?.players) return new Set();
     const player = data.players[playerId];
@@ -163,7 +172,7 @@ function saveHistory(data) {
         extraDiceCount: data.extraDiceCount === undefined ? null : data.extraDiceCount,
         extraTurnOriginalNext: data.extraTurnOriginalNext === undefined ? null : data.extraTurnOriginalNext,
         weakState: data.weakState === undefined ? null : data.weakState,
-        roundClaimedEdges: data.roundClaimedEdges || {}
+        roundClaimedEdges: data.roundClaimedEdges || {}   // 新增：記錄本輪已申請的邊
     };
     const history = data.history || [];
     history.push(historySnapshot);
@@ -226,6 +235,7 @@ function startGame() {
                     roomRefLocal.child('gamePhase').set('start');
                     roomRefLocal.child('turn').set(activePlayers[0]);
                     roomRefLocal.child('lastActive').set(firebase.database.ServerValue.TIMESTAMP);
+                    // 初始化 roundClaimedEdges
                     roomRefLocal.child('roundClaimedEdges').set({});
                 });
             } else {
@@ -754,49 +764,6 @@ function showResult(data) {
     }
 }
 
-// ---------- 重置遊戲（清空所有，保留房間與玩家，重新開始）----------
-function resetGameKeepPlayers() {
-    if (!currentRoom) return;
-    const roomRefLocal = database.ref(`rooms/${currentRoom}`);
-    roomRefLocal.once('value').then(snap => {
-        const data = snap.val();
-        if (!data) return;
-        const gameMode = data.gameMode || 'normal';
-        const mapVersion = data.mapVersion || 'standard';
-        const activePlayers = getActivePlayers(data);
-        if (activePlayers.length === 0) return;
-
-        // 重置玩家資料（保留 joined，清空 start 和 edges）
-        const resetPlayers = {};
-        ALL_PLAYERS.forEach(p => {
-            const joined = data.players[p]?.joined || false;
-            resetPlayers[p] = { start: null, edges: {}, joined: joined };
-        });
-
-        const updates = {
-            players: resetPlayers,
-            turn: activePlayers[0],
-            gamePhase: 'start',
-            edgesOwner: {},
-            edgesScore: {},
-            weakState: null,
-            extraTurn: null,
-            extraDiceCount: null,
-            extraTurnOriginalNext: null,
-            roundClaimedEdges: {},
-            history: [],
-            lastActive: firebase.database.ServerValue.TIMESTAMP
-        };
-        // 保持 gameMode 和 mapVersion 不變
-        roomRefLocal.update(updates).then(() => {
-            console.log('✅ 遊戲已重置，請重新選擇起點');
-        }).catch(err => {
-            console.error('❌ 重置失敗', err);
-            alert('重置失敗：' + err.message);
-        });
-    });
-}
-
 // ---------- 事件監聽 ----------
 document.getElementById('create-btn').addEventListener('click', createRoom);
 document.getElementById('join-btn').addEventListener('click', joinRoom);
@@ -807,12 +774,6 @@ document.getElementById('reset-game-btn').addEventListener('click', resetGame);
 document.getElementById('back-to-lobby-btn').addEventListener('click', backToLobby);
 const undoBtn = document.getElementById('undo-btn');
 if (undoBtn) undoBtn.addEventListener('click', undoLastMove);
-
-// 再玩一次按鈕
-const playAgainBtn = document.getElementById('play-again-btn');
-if (playAgainBtn) {
-    playAgainBtn.addEventListener('click', resetGameKeepPlayers);
-}
 
 // 模式選擇事件
 const modeSelect = document.getElementById('game-mode-select');
@@ -957,16 +918,20 @@ document.getElementById('claim-buttons-container')?.addEventListener('click', (e
         if (!edge) return;
         const owner = edgesOwner[edgeId];
         if (!owner || owner === playerId) return;
+        
+        // 檢查是否為橋
         if (wouldSplitPlayerGraph(owner, edgeId, data, allEdges)) {
             alert('此邊會使對方圖形分裂成兩個有邊的部分，不能申請！');
             return;
         }
-        // 檢查是否在本輪已被申請過
+        
+        // 新增：檢查是否在本輪已被申請過（同一回合內同一條強勢方邊只能被申請一次）
         const roundClaimed = data.roundClaimedEdges || {};
         if (roundClaimed[edgeId]) {
             alert(`邊 ${edgeId} 在本回合已被申請過，不能再次申請！`);
             return;
         }
+        
         let score;
         if (data.gameMode === 'party') {
             const input = prompt(`請為線段 ${edgeId} 輸入三顆骰子總和 (3-18)：`);
@@ -991,8 +956,7 @@ document.getElementById('claim-buttons-container')?.addEventListener('click', (e
         const activePlayers = getActivePlayers(data);
         const currentIndex = activePlayers.indexOf(playerId);
         const nextIndex = (currentIndex + 1) % activePlayers.length;
-        // 修正：如果在額外回合中，則繼承原有的 extraTurnOriginalNext，否則使用弱勢方的下一位
-        const originalNext = data.extraTurn ? data.extraTurnOriginalNext : activePlayers[nextIndex];
+        const weakPlayerNext = activePlayers[nextIndex];
         const updates = {};
         updates[`edgesOwner/${edgeId}`] = playerId;
         updates[`edgesScore/${edgeId}`] = score;
@@ -1001,10 +965,11 @@ document.getElementById('claim-buttons-container')?.addEventListener('click', (e
         updates.turn = owner;
         updates.extraTurn = true;
         updates.extraDiceCount = 1;
-        updates.extraTurnOriginalNext = originalNext;   // 繼承或新設
+        updates.extraTurnOriginalNext = weakPlayerNext;
         updates.weakState = null;
         updates.gamePhase = 'playing';
         updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
+        // 記錄該邊已被本輪申請
         updates[`roundClaimedEdges/${edgeId}`] = true;
         const history = saveHistory(data);
         updates.history = history;
