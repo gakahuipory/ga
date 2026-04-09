@@ -74,7 +74,7 @@
                     <span> 總和: <span id="dice-sum">0</span></span>
                     <button id="roll-dice-btn" disabled>擲骰(回合自動)</button>
                 </div>
-                <!-- 技能卡區域 -->
+                <!-- 技能卡區域（裁判模式下會隱藏） -->
                 <div id="skill-area" style="opacity: 0.5; pointer-events: none;">
                     <div class="skill-card">🔁 換線 (0)</div>
                     <div class="skill-card">🎲 重骰 (0)</div>
@@ -139,6 +139,11 @@
             <div id="result-graph-area">
                 <p>你的佔邊圖形：</p>
                 <canvas id="result-canvas" width="900" height="650"></canvas>
+            </div>
+            <!-- 邊成本列表（派對模式用） -->
+            <div id="edge-cost-list-container" style="margin-top: 20px; padding: 15px; background: #ecf0f1; border-radius: 30px;">
+                <h3 style="text-align: center; margin-bottom: 10px;">📋 邊成本列表</h3>
+                <div id="edge-cost-list" class="edge-cost-grid"></div>
             </div>
             <button id="back-to-lobby-btn">返回大廳</button>
         </div>
