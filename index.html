@@ -13,7 +13,7 @@
     <div id="game-container">
         <h1>圖途論戰 Graph Rivals</h1>
         <div id="login-section">
-            <h2>⚔️ 四人對戰 · 即時連線</h2>
+            <!-- 已移除副標題 -->
             <div>
                 <label>房間號碼 (3-7位數字)：</label>
                 <input type="text" id="room-input" placeholder="例如: 1234567" pattern="\d{3,7}" title="請輸入3到7位數字">
@@ -51,6 +51,10 @@
                         <option value="normal">一般模式</option>
                         <option value="party">派對模式</option>
                     </select>
+                </div>
+                <!-- 規則按鈕（所有人都可見） -->
+                <div style="margin-top: 15px;">
+                    <button id="rules-btn-waiting" class="rules-btn">📖 遊戲規則</button>
                 </div>
             </div>
             <p id="waiting-hint">等待房主開始遊戲⋯</p>
@@ -152,8 +156,17 @@
     <!-- 自訂 JavaScript -->
     <script src="firebase-config.js"></script>
     <script src="script.js"></script>
-    <!-- 連線檢測 (可選) -->
+    <!-- 連線檢測與規則按鈕事件 -->
     <script>
+        // 等待房間規則按鈕（新開視窗）
+        const rulesBtnWaiting = document.getElementById('rules-btn-waiting');
+        if (rulesBtnWaiting) {
+            rulesBtnWaiting.addEventListener('click', () => {
+                window.open('rules.html', '_blank', 'width=800,height=600,toolbar=no,menubar=no,scrollbars=yes');
+            });
+        }
+
+        // 原有的 Firebase 連線檢測
         setTimeout(() => {
             try {
                 if (typeof firebase === 'undefined') {
