@@ -754,6 +754,49 @@ function showResult(data) {
     }
 }
 
+// ---------- 重置遊戲（清空所有，保留房間與玩家，重新開始）----------
+function resetGameKeepPlayers() {
+    if (!currentRoom) return;
+    const roomRefLocal = database.ref(`rooms/${currentRoom}`);
+    roomRefLocal.once('value').then(snap => {
+        const data = snap.val();
+        if (!data) return;
+        const gameMode = data.gameMode || 'normal';
+        const mapVersion = data.mapVersion || 'standard';
+        const activePlayers = getActivePlayers(data);
+        if (activePlayers.length === 0) return;
+
+        // 重置玩家資料（保留 joined，清空 start 和 edges）
+        const resetPlayers = {};
+        ALL_PLAYERS.forEach(p => {
+            const joined = data.players[p]?.joined || false;
+            resetPlayers[p] = { start: null, edges: {}, joined: joined };
+        });
+
+        const updates = {
+            players: resetPlayers,
+            turn: activePlayers[0],
+            gamePhase: 'start',
+            edgesOwner: {},
+            edgesScore: {},
+            weakState: null,
+            extraTurn: null,
+            extraDiceCount: null,
+            extraTurnOriginalNext: null,
+            roundClaimedEdges: {},
+            history: [],
+            lastActive: firebase.database.ServerValue.TIMESTAMP
+        };
+        // 保持 gameMode 和 mapVersion 不變
+        roomRefLocal.update(updates).then(() => {
+            console.log('✅ 遊戲已重置，請重新選擇起點');
+        }).catch(err => {
+            console.error('❌ 重置失敗', err);
+            alert('重置失敗：' + err.message);
+        });
+    });
+}
+
 // ---------- 事件監聽 ----------
 document.getElementById('create-btn').addEventListener('click', createRoom);
 document.getElementById('join-btn').addEventListener('click', joinRoom);
@@ -764,6 +807,12 @@ document.getElementById('reset-game-btn').addEventListener('click', resetGame);
 document.getElementById('back-to-lobby-btn').addEventListener('click', backToLobby);
 const undoBtn = document.getElementById('undo-btn');
 if (undoBtn) undoBtn.addEventListener('click', undoLastMove);
+
+// 再玩一次按鈕
+const playAgainBtn = document.getElementById('play-again-btn');
+if (playAgainBtn) {
+    playAgainBtn.addEventListener('click', resetGameKeepPlayers);
+}
 
 // 模式選擇事件
 const modeSelect = document.getElementById('game-mode-select');
