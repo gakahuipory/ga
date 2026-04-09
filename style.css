@@ -142,12 +142,11 @@ h1, h2 {
     border-left: 8px solid;
 }
 
-/* 等待房間各隊伍邊框顏色 */
-#waiting-player1 { border-left-color: #3498db; } /* 藍 */
-#waiting-player2 { border-left-color: #e74c3c; } /* 紅 */
-#waiting-player3 { border-left-color: #2ecc71; } /* 綠 */
-#waiting-player4 { border-left-color: #9b59b6; } /* 紫 */
-#waiting-player5 { border-left-color: #3498db; } /* 藍（派對模式第五玩家） */
+#waiting-player1 { border-left-color: #3498db; }
+#waiting-player2 { border-left-color: #e74c3c; }
+#waiting-player3 { border-left-color: #2ecc71; }
+#waiting-player4 { border-left-color: #9b59b6; }
+#waiting-player5 { border-left-color: #3498db; }
 
 .player-waiting.current-player {
     border: 3px solid #f1c40f;
@@ -239,6 +238,23 @@ h1, h2 {
     padding: 8px 20px;
     border-radius: 40px;
     color: #2c3e50;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 裁判回合圈圈 */
+.turn-circle {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 1.2rem;
+    vertical-align: middle;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 #dice-area {
@@ -309,12 +325,11 @@ h1, h2 {
     border-left: 8px solid;
 }
 
-/* 各隊伍邊框顏色 */
-#player1-info { border-left-color: #3498db; } /* 藍 */
-#player2-info { border-left-color: #e74c3c; } /* 紅 */
-#player3-info { border-left-color: #2ecc71; } /* 綠 */
-#player4-info { border-left-color: #9b59b6; } /* 紫 */
-#player5-info { border-left-color: #3498db; } /* 藍（第五玩家） */
+#player1-info { border-left-color: #3498db; }
+#player2-info { border-left-color: #e74c3c; }
+#player3-info { border-left-color: #2ecc71; }
+#player4-info { border-left-color: #9b59b6; }
+#player5-info { border-left-color: #3498db; }
 
 .player-info.current-player {
     border: 3px solid #f1c40f;
@@ -565,6 +580,32 @@ h1, h2 {
     height: auto;
     background: #f5f7fa;
     border-radius: 30px;
+}
+
+/* 邊成本列表 */
+.edge-cost-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 5px;
+}
+.edge-cost-item {
+    background: #f8f9fa;
+    padding: 6px 12px;
+    border-radius: 20px;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 500;
+    border-left: 4px solid;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.edge-cost-item span.edge-id {
+    font-weight: bold;
+}
+.edge-cost-item span.edge-score {
+    color: #2c3e50;
 }
 
 #back-to-lobby-btn {
