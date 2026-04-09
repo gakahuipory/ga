@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>遊戲規則 - 圖途論戰</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        body {
+            background: linear-gradient(145deg, #e0e5ec 0%, #f0f4f8 100%);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .rules-container {
+            max-width: 800px;
+            background: #f8fafc;
+            border-radius: 30px;
+            padding: 30px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        h1 {
+            text-align: center;
+            color: #1e3799;
+            margin-bottom: 20px;
+        }
+        .rules-scroll {
+            max-height: 70vh;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        h3 {
+            color: #1e3799;
+            margin-top: 20px;
+        }
+        p, ul {
+            font-size: 1rem;
+            line-height: 1.5;
+            margin: 8px 0;
+        }
+        .close-btn {
+            display: block;
+            width: 120px;
+            margin: 20px auto 0;
+            padding: 8px 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: bold;
+        }
+        .close-btn:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="rules-container">
+        <h1>📜 遊戲規則說明書</h1>
+        <div class="rules-scroll">
+            <h3>一、遊戲概述</h3>
+            <p>這是一款 4 人即時連線的圖版策略遊戲，結合「一筆畫」與「中國郵遞員問題」的概念。<br>
+            玩家輪流佔領地圖上的「邊」（靈脈），佔領時可獲得骰子點數（成本）。遊戲結束時，總分最高者獲勝。</p>
+            <p><strong>兩種模式：</strong> 一般模式（自動擲骰）／ 派對模式（手動輸入骰子，另含裁判）。</p>
+
+            <h3>二、遊戲準備</h3>
+            <ul>
+                <li><strong>建立房間：</strong> 房主輸入 3~7 位數字房間號碼建立房間，其他玩家輸入相同號碼加入。房主可在等待房間切換模式。</li>
+                <li><strong>選擇地圖（僅派對模式）：</strong> 裁判（房主）可選「標準地圖」（13 節點，28 條邊）或「加大地圖」（15 節點，36 條邊）。</li>
+                <li><strong>選擇起點：</strong> 每位玩家從地圖上的節點中選擇一個作為自己的起點（虛線圓圈標示），每人只能選一次。</li>
+            </ul>
+
+            <h3>三、回合進行</h3>
+            <ul>
+                <li><strong>回合順序：</strong> 一般模式：玩家1→2→3→4；派對模式：玩家2(藍)→3(紅)→4(綠)→5(紫)（玩家1裁判不參與）。</li>
+                <li><strong>佔領條件：</strong> 只能佔領與自己現有區域（起點+已佔邊端點）相連的空邊。系統會自動過濾可佔邊。</li>
+                <li><strong>獲得成本：</strong>
+                    <ul>
+                        <li>一般模式：自動擲骰（正常佔邊2顆，弱勢申請3顆，額外回合1顆）。</li>
+                        <li>派對模式：手動輸入骰子點數（範圍：正常2–12，弱勢3–18，額外1–6），只接受純整數。</li>
+                    </ul>
+                </li>
+                <li><strong>佔領後效果：</strong> 邊顯示為隊伍顏色並標記成本，兩個端點加入自己的區域。</li>
+            </ul>
+
+            <h3>四、弱勢方逆襲機制（盟約宣誓）</h3>
+            <ul>
+                <li><strong>觸發條件：</strong> 輪到你時沒有任何可佔領的邊，自動進入弱勢申請階段。</li>
+                <li><strong>申請規則：</strong> 可向與自己相鄰的強勢方邊提出申請，但該邊不能是「橋」（會使對方圖形分裂），且同一回合內同一條邊只能被申請一次。</li>
+                <li><strong>結果：</strong> 弱勢方獲得該邊並擲骰；被佔方獲得一次額外回合（擲1顆骰子）；額外回合結束後恢復正常順序。</li>
+            </ul>
+
+            <h3>五、遊戲結束與結算</h3>
+            <ul>
+                <li>所有邊被佔滿後遊戲結束。</li>
+                <li>結算畫面顯示每位玩家的佔領邊數、總成本，並繪製自己佔領的圖形。</li>
+                <li>派對模式額外顯示「邊成本列表」：一般玩家只看自己的邊；裁判看所有邊（含隊伍名稱）。</li>
+            </ul>
+
+            <h3>六、派對模式專屬功能（裁判）</h3>
+            <ul>
+                <li>裁判擁有全局視野，畫面顯示回合彩色圓圈。</li>
+                <li>裁判可點擊「返回上一步」回滾到上次行動，讓該玩家重新選擇邊與輸入成本。</li>
+            </ul>
+
+            <h3>七、其他規則</h3>
+            <ul>
+                <li>顏色對應固定：一般模式玩家1藍、2紅、3綠、4紫；派對模式玩家1裁判、2藍、3紅、4綠、5紫。</li>
+                <li>地圖差異：標準版13節點28邊，加大版15節點36邊（新增N、O及8條邊）。</li>
+                <li>房間若無任何玩家且超過5分鐘無活動，自動刪除。</li>
+            </ul>
+
+            <h3>八、勝利條件</h3>
+            <p>總成本最高者獲勝；同分則佔邊數多者勝；仍相同則並列冠軍。</p>
+        </div>
+        <button class="close-btn" onclick="window.close()">關閉視窗</button>
+    </div>
+</body>
+</html>
