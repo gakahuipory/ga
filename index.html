@@ -11,19 +11,100 @@
 </head>
 <body>
     <div id="game-container">
-        <h1>圖途論戰 Graph Rivals</h1>
-        <div id="login-section">
-            <h2>⚔️ 四人對戰 · 即時連線</h2>
-            <div>
-                <label>房間號碼 (3-7位數字)：</label>
-                <input type="text" id="room-input" placeholder="例如: 1234567" pattern="\d{3,7}" title="請輸入3到7位數字">
-                <button id="create-btn">建立房間</button>
-                <button id="join-btn">加入房間</button>
+        <!-- ========= 首頁（遊戲開始/規則） ========= -->
+        <div id="landing-page">
+            <h1>圖途論戰 Graph Rivals</h1>
+            <div class="landing-buttons">
+                <button id="start-game-btn-landing">🎮 遊戲開始</button>
+                <button id="rules-btn-landing">📖 遊戲規則</button>
             </div>
-            <div id="player-id-info"></div>
-            <div id="room-error-message" style="color: red; margin-top: 10px;"></div>
         </div>
 
+        <!-- ========= 遊戲開始頁面（原登入區） ========= -->
+        <div id="game-start-page" style="display: none;">
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+                <button id="back-to-landing-from-start" class="back-btn">← 返回首頁</button>
+            </div>
+            <div id="login-section">
+                <h2>⚔️ 四人對戰 · 即時連線</h2>
+                <div>
+                    <label>房間號碼 (3-7位數字)：</label>
+                    <input type="text" id="room-input" placeholder="例如: 1234567" pattern="\d{3,7}" title="請輸入3到7位數字">
+                    <button id="create-btn">建立房間</button>
+                    <button id="join-btn">加入房間</button>
+                </div>
+                <div id="player-id-info"></div>
+                <div id="room-error-message" style="color: red; margin-top: 10px;"></div>
+            </div>
+        </div>
+
+        <!-- ========= 遊戲規則頁面 ========= -->
+        <div id="rules-page" style="display: none;">
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+                <button id="back-to-landing-from-rules" class="back-btn">← 返回首頁</button>
+            </div>
+            <div class="rules-container">
+                <h2>📜 遊戲規則說明書</h2>
+                <div class="rules-scroll">
+                    <h3>一、遊戲概述</h3>
+                    <p>這是一款 4 人即時連線的圖版策略遊戲，結合「一筆畫」與「中國郵遞員問題」的概念。<br>
+                    玩家輪流佔領地圖上的「邊」（靈脈），佔領時可獲得骰子點數（成本）。遊戲結束時，總分最高者獲勝。</p>
+                    <p><strong>兩種模式：</strong> 一般模式（自動擲骰）／ 派對模式（手動輸入骰子，另含裁判）。</p>
+
+                    <h3>二、遊戲準備</h3>
+                    <ul>
+                        <li><strong>建立房間：</strong> 房主輸入 3~7 位數字房間號碼建立房間，其他玩家輸入相同號碼加入。房主可在等待房間切換模式。</li>
+                        <li><strong>選擇地圖（僅派對模式）：</strong> 裁判（房主）可選「標準地圖」（13 節點，28 條邊）或「加大地圖」（15 節點，36 條邊）。</li>
+                        <li><strong>選擇起點：</strong> 每位玩家從地圖上的節點中選擇一個作為自己的起點（虛線圓圈標示），每人只能選一次。</li>
+                    </ul>
+
+                    <h3>三、回合進行</h3>
+                    <ul>
+                        <li><strong>回合順序：</strong> 一般模式：玩家1→2→3→4；派對模式：玩家2(藍)→3(紅)→4(綠)→5(紫)（玩家1裁判不參與）。</li>
+                        <li><strong>佔領條件：</strong> 只能佔領與自己現有區域（起點+已佔邊端點）相連的空邊。系統會自動過濾可佔邊。</li>
+                        <li><strong>獲得成本：</strong>
+                            <ul>
+                                <li>一般模式：自動擲骰（正常佔邊2顆，弱勢申請3顆，額外回合1顆）。</li>
+                                <li>派對模式：手動輸入骰子點數（範圍：正常2–12，弱勢3–18，額外1–6），只接受純整數。</li>
+                            </ul>
+                        </li>
+                        <li><strong>佔領後效果：</strong> 邊顯示為隊伍顏色並標記成本，兩個端點加入自己的區域。</li>
+                    </ul>
+
+                    <h3>四、弱勢方逆襲機制</h3>
+                    <ul>
+                        <li><strong>觸發條件：</strong> 輪到你時沒有任何可佔領的邊，自動進入弱勢申請階段。</li>
+                        <li><strong>申請規則：</strong> 可向與自己相鄰的強勢方邊提出申請，但該邊不能是「橋」（會使對方圖形分裂），且同一回合內同一條邊只能被申請一次。</li>
+                        <li><strong>結果：</strong> 弱勢方獲得該邊並擲骰；被佔方獲得一次額外回合（擲1顆骰子）；額外回合結束後恢復正常順序。</li>
+                    </ul>
+
+                    <h3>五、遊戲結束與結算</h3>
+                    <ul>
+                        <li>所有邊被佔滿後遊戲結束。</li>
+                        <li>結算畫面顯示每位玩家的佔領邊數、總成本，並繪製自己佔領的圖形。</li>
+                        <li>派對模式額外顯示「邊成本列表」：一般玩家只看自己的邊；裁判看所有邊（含隊伍名稱）。</li>
+                    </ul>
+
+                    <h3>六、派對模式專屬功能（裁判）</h3>
+                    <ul>
+                        <li>裁判擁有全局視野，畫面顯示回合彩色圓圈。</li>
+                        <li>裁判可點擊「返回上一步」回滾到上次行動，讓該玩家重新選擇邊與輸入成本。</li>
+                    </ul>
+
+                    <h3>七、其他規則</h3>
+                    <ul>
+                        <li>顏色對應固定：一般模式玩家1藍、2紅、3綠、4紫；派對模式玩家1裁判、2藍、3紅、4綠、5紫。</li>
+                        <li>地圖差異：標準版13節點28邊，加大版15節點36邊（新增N、O及8條邊）。</li>
+                        <li>房間若無任何玩家且超過5分鐘無活動，自動刪除。</li>
+                    </ul>
+
+                    <h3>八、勝利條件</h3>
+                    <p>總成本最高者獲勝；同分則佔邊數多者勝；仍相同則並列冠軍。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========= 原有等待房間、遊戲主畫面、結算頁面 ========= -->
         <!-- 等待房間 -->
         <div id="waiting-room" style="display: none;">
             <div id="waiting-header">
@@ -31,10 +112,7 @@
                 <button id="waiting-exit-btn">退出房間</button>
             </div>
             <h2>等待玩家加入⋯</h2>
-            <!-- 裁判資訊（僅派對模式顯示） -->
-            <div id="referee-info" style="display: none; background: #34495e; color: white; padding: 8px; border-radius: 20px; margin-bottom: 10px;">
-                👨‍⚖️ 裁判：房主
-            </div>
+            <div id="referee-info" style="display: none; background: #34495e; color: white; padding: 8px; border-radius: 20px; margin-bottom: 10px;">👨‍⚖️ 裁判：房主</div>
             <div id="player-list">
                 <div class="player-waiting" id="waiting-player1">藍隊 <span class="waiting-status" id="player1-status">❌</span></div>
                 <div class="player-waiting" id="waiting-player2">紅隊 <span class="waiting-status" id="player2-status">❌</span></div>
@@ -44,7 +122,6 @@
             </div>
             <div id="waiting-start-area">
                 <button id="start-game-btn" style="display: none;">開始遊戲</button>
-                <!-- 模式選擇（僅房主可見） -->
                 <div id="mode-selection" style="display: none; margin-top: 15px;">
                     <label style="color: #2c3e50;">遊戲模式：</label>
                     <select id="game-mode-select">
@@ -74,19 +151,16 @@
                     <span> 總和: <span id="dice-sum">0</span></span>
                     <button id="roll-dice-btn" disabled>擲骰(回合自動)</button>
                 </div>
-                <!-- 技能卡區域（裁判模式下會隱藏） -->
                 <div id="skill-area" style="opacity: 0.5; pointer-events: none;">
                     <div class="skill-card">🔁 換線 (0)</div>
                     <div class="skill-card">🎲 重骰 (0)</div>
                     <div class="skill-card">✨ 特殊 (0)</div>
                 </div>
-                <!-- 裁判專用返回按鈕 -->
                 <div id="referee-actions" style="display: none;">
                     <button id="undo-btn" class="undo-button">↩️ 返回上一步</button>
                 </div>
             </div>
 
-            <!-- 四位玩家資訊 -->
             <div id="players-info">
                 <div id="player1-info" class="player-info"><span class="team-name">藍隊</span> <span class="player-start" id="p1-start"></span></div>
                 <div id="player2-info" class="player-info"><span class="team-name">紅隊</span> <span class="player-start" id="p2-start"></span></div>
@@ -100,31 +174,19 @@
             </div>
 
             <div id="control-panel">
-                <!-- 起點選擇區 -->
                 <div id="start-point-selection" style="display: none;">
                     <p>請選擇你的起點 (A~M)</p>
-                    <div class="node-buttons">
-                        <!-- 動態生成 A~M 按鈕 -->
-                    </div>
+                    <div class="node-buttons"></div>
                 </div>
-
-                <!-- 邊選擇區 -->
                 <div id="edge-selection" style="display: none;">
                     <p>請選擇要佔領的邊：</p>
-                    <div id="edge-buttons-container" class="edge-buttons">
-                        <!-- 動態生成可佔邊按鈕 -->
-                    </div>
+                    <div id="edge-buttons-container" class="edge-buttons"></div>
                 </div>
-
-                <!-- 弱勢方申請區 -->
                 <div id="weak-player-section" style="display: none;">
                     <p>你已無邊可佔，成為弱勢方。可向相鄰的強勢方申請佔邊：</p>
-                    <div id="claim-buttons-container" class="edge-buttons">
-                        <!-- 動態生成可申請的邊 -->
-                    </div>
+                    <div id="claim-buttons-container" class="edge-buttons"></div>
                     <p id="claim-info"></p>
                 </div>
-
                 <div id="game-status"></div>
                 <button id="reset-game-btn" style="display: none;">重新開始</button>
             </div>
@@ -133,18 +195,17 @@
         <!-- 結算頁面 -->
         <div id="result-section" style="display: none;">
             <h2>遊戲結束！</h2>
-            <div id="result-players-info">
-                <!-- 顯示各隊伍總分、邊數 -->
-            </div>
+            <div id="result-players-info"></div>
             <div id="result-graph-area">
                 <p>你的佔邊圖形：</p>
                 <canvas id="result-canvas" width="900" height="650"></canvas>
             </div>
-            <!-- 邊成本列表（派對模式用） -->
             <div id="edge-cost-list-container" style="margin-top: 20px; padding: 15px; background: #ecf0f1; border-radius: 30px;">
                 <h3 style="text-align: center; margin-bottom: 10px;">📋 邊成本列表</h3>
                 <div id="edge-cost-list" class="edge-cost-grid"></div>
             </div>
+	<div style="display: flex; justify-content: center; gap: 20px; margin-top: 20px;">
+	    <button id="play-again-btn" class="play-again-btn">🔄 再玩一次</button>
             <button id="back-to-lobby-btn">返回大廳</button>
         </div>
     </div>
@@ -152,24 +213,62 @@
     <!-- 自訂 JavaScript -->
     <script src="firebase-config.js"></script>
     <script src="script.js"></script>
-    <!-- 連線檢測 (可選) -->
+    <!-- 頁面切換邏輯（獨立於遊戲邏輯） -->
     <script>
-        setTimeout(() => {
-            try {
-                if (typeof firebase === 'undefined') {
-                    console.error('❌ Firebase SDK 未載入！');
-                } else if (!firebase.apps.length) {
-                    console.error('❌ Firebase 未初始化！請檢查 firebase-config.js');
-                } else {
-                    console.log('✅ Firebase 初始化成功');
-                    firebase.database().ref('connection_test').set({ timestamp: Date.now() })
-                        .then(() => console.log('✅ 資料庫寫入成功'))
-                        .catch(err => console.error('❌ 資料庫寫入失敗：', err));
-                }
-            } catch (e) {
-                console.error('❌ 檢測例外：', e);
+        // 取得各頁面元素
+        const landingPage = document.getElementById('landing-page');
+        const gameStartPage = document.getElementById('game-start-page');
+        const rulesPage = document.getElementById('rules-page');
+
+        // 按鈕
+        const startBtnLanding = document.getElementById('start-game-btn-landing');
+        const rulesBtnLanding = document.getElementById('rules-btn-landing');
+        const backFromStart = document.getElementById('back-to-landing-from-start');
+        const backFromRules = document.getElementById('back-to-landing-from-rules');
+
+        // 顯示首頁，隱藏其他
+        function showLanding() {
+            landingPage.style.display = 'block';
+            gameStartPage.style.display = 'none';
+            rulesPage.style.display = 'none';
+        }
+
+        // 顯示遊戲開始頁面
+        function showGameStart() {
+            landingPage.style.display = 'none';
+            gameStartPage.style.display = 'block';
+            rulesPage.style.display = 'none';
+        }
+
+        // 顯示規則頁面
+        function showRules() {
+            landingPage.style.display = 'none';
+            gameStartPage.style.display = 'none';
+            rulesPage.style.display = 'block';
+        }
+
+        // 綁定事件
+        startBtnLanding.addEventListener('click', showGameStart);
+        rulesBtnLanding.addEventListener('click', showRules);
+        backFromStart.addEventListener('click', showLanding);
+        backFromRules.addEventListener('click', showLanding);
+
+        // 確保原本的登入區、等待房、遊戲區等不受影響，但需要確保從遊戲開始頁面進入後，
+        // 所有後續遊戲流程（建立房間、等待房間等）的顯示正常。
+        // 原有的 script.js 會控制 waiting-room, game-play-section, result-section 的顯示，
+        // 我們只需確保它們不被首頁遮蓋即可（已通過 display 控制）。
+        // 另外，如果玩家在遊戲中點擊「返回首頁」，需要強制重置遊戲狀態（退出房間）。
+        // 這裡簡單監聽返回首頁按鈕，若當前有房間則觸發退出（沿用原有的 exitRoom 邏輯）。
+        function resetToLanding() {
+            // 如果存在 currentRoom 且有玩家 ID，則調用退出房間函數（需確保 exitRoom 已定義）
+            if (typeof currentRoom !== 'undefined' && currentRoom && typeof exitRoom === 'function') {
+                exitRoom();
             }
-        }, 500);
+            showLanding();
+        }
+        // 覆蓋返回按鈕的行為（保留原退出邏輯）
+        backFromStart.onclick = resetToLanding;
+        backFromRules.onclick = showLanding; // 規則頁面沒有遊戲狀態，直接返回即可
     </script>
 </body>
 </html>
