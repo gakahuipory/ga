@@ -162,7 +162,8 @@ function saveHistory(data) {
         extraTurn: data.extraTurn === undefined ? null : data.extraTurn,
         extraDiceCount: data.extraDiceCount === undefined ? null : data.extraDiceCount,
         extraTurnOriginalNext: data.extraTurnOriginalNext === undefined ? null : data.extraTurnOriginalNext,
-        weakState: data.weakState === undefined ? null : data.weakState
+        weakState: data.weakState === undefined ? null : data.weakState,
+        roundClaimedEdges: data.roundClaimedEdges || {}
     };
     const history = data.history || [];
     history.push(historySnapshot);
@@ -196,6 +197,7 @@ function undoLastMove() {
             extraDiceCount: lastState.extraDiceCount === undefined ? null : lastState.extraDiceCount,
             extraTurnOriginalNext: lastState.extraTurnOriginalNext === undefined ? null : lastState.extraTurnOriginalNext,
             weakState: lastState.weakState === undefined ? null : lastState.weakState,
+            roundClaimedEdges: lastState.roundClaimedEdges || {},
             history: history.slice(0, -1),
             lastActive: firebase.database.ServerValue.TIMESTAMP
         };
@@ -224,12 +226,14 @@ function startGame() {
                     roomRefLocal.child('gamePhase').set('start');
                     roomRefLocal.child('turn').set(activePlayers[0]);
                     roomRefLocal.child('lastActive').set(firebase.database.ServerValue.TIMESTAMP);
+                    roomRefLocal.child('roundClaimedEdges').set({});
                 });
             } else {
                 roomRefLocal.child('mapVersion').set('standard').then(() => {
                     roomRefLocal.child('gamePhase').set('start');
                     roomRefLocal.child('turn').set(activePlayers[0]);
                     roomRefLocal.child('lastActive').set(firebase.database.ServerValue.TIMESTAMP);
+                    roomRefLocal.child('roundClaimedEdges').set({});
                 });
             }
         } else {
@@ -798,7 +802,8 @@ if (modeSelect) {
                 edgesScore: {},
                 weakState: null,
                 lastActive: firebase.database.ServerValue.TIMESTAMP,
-                history: []
+                history: [],
+                roundClaimedEdges: {}
             };
             database.ref(`rooms/${currentRoom}`).update(updates);
         });
@@ -907,6 +912,12 @@ document.getElementById('claim-buttons-container')?.addEventListener('click', (e
             alert('此邊會使對方圖形分裂成兩個有邊的部分，不能申請！');
             return;
         }
+        // 檢查是否在本輪已被申請過
+        const roundClaimed = data.roundClaimedEdges || {};
+        if (roundClaimed[edgeId]) {
+            alert(`邊 ${edgeId} 在本回合已被申請過，不能再次申請！`);
+            return;
+        }
         let score;
         if (data.gameMode === 'party') {
             const input = prompt(`請為線段 ${edgeId} 輸入三顆骰子總和 (3-18)：`);
@@ -931,7 +942,8 @@ document.getElementById('claim-buttons-container')?.addEventListener('click', (e
         const activePlayers = getActivePlayers(data);
         const currentIndex = activePlayers.indexOf(playerId);
         const nextIndex = (currentIndex + 1) % activePlayers.length;
-        const weakPlayerNext = activePlayers[nextIndex];
+        // 修正：如果在額外回合中，則繼承原有的 extraTurnOriginalNext，否則使用弱勢方的下一位
+        const originalNext = data.extraTurn ? data.extraTurnOriginalNext : activePlayers[nextIndex];
         const updates = {};
         updates[`edgesOwner/${edgeId}`] = playerId;
         updates[`edgesScore/${edgeId}`] = score;
@@ -940,10 +952,11 @@ document.getElementById('claim-buttons-container')?.addEventListener('click', (e
         updates.turn = owner;
         updates.extraTurn = true;
         updates.extraDiceCount = 1;
-        updates.extraTurnOriginalNext = weakPlayerNext;
+        updates.extraTurnOriginalNext = originalNext;   // 繼承或新設
         updates.weakState = null;
         updates.gamePhase = 'playing';
         updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
+        updates[`roundClaimedEdges/${edgeId}`] = true;
         const history = saveHistory(data);
         updates.history = history;
         database.ref(`rooms/${currentRoom}`).update(updates);
@@ -1002,7 +1015,8 @@ function createRoom() {
             dices: [0, 0, 0],
             lastActive: firebase.database.ServerValue.TIMESTAMP,
             weakState: null,
-            history: []
+            history: [],
+            roundClaimedEdges: {}
         }).then(() => {
             roomRef.onDisconnect().remove();
             document.getElementById('login-section').style.display = 'none';
@@ -1097,7 +1111,8 @@ function resetGame() {
         dices: [0, 0, 0],
         lastActive: firebase.database.ServerValue.TIMESTAMP,
         weakState: null,
-        history: []
+        history: [],
+        roundClaimedEdges: {}
     });
 }
 
