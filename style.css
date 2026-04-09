@@ -6,12 +6,17 @@
     padding: 0;
 }
 
+html {
+    overflow-y: scroll;   /* 強制顯示垂直捲軸，避免寬度跳動 */
+}
+
 body {
     background: linear-gradient(145deg, #e0e5ec 0%, #f0f4f8 100%);
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
+    width: 100%;
 }
 
 #game-container {
@@ -651,4 +656,150 @@ h1, h2 {
         min-width: 150px;
         font-size: 0.9rem;
     }
+}
+
+/* 模態框背景 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.7);
+}
+
+/* 模態框內容 */
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 20px;
+    border-radius: 30px;
+    width: 80%;
+    max-width: 700px;
+    max-height: 80%;
+    overflow-y: auto;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    color: #2c3e50;
+}
+
+/* 關閉按鈕 */
+.close-btn {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.close-btn:hover {
+    color: black;
+}
+
+/* 規則滾動區 */
+.rules-scroll {
+    margin-top: 15px;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+.rules-scroll h3 {
+    margin-top: 15px;
+    color: #1e3799;
+}
+.rules-scroll ul, .rules-scroll p {
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+/* 首頁容器 */
+#landing-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    text-align: center;
+    width: 100%;
+}
+
+#landing-page h1 {
+    font-size: 3rem;
+    margin-bottom: 50px;
+}
+
+.landing-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+#start-game-btn-landing, #rules-btn-landing {
+    font-size: 2rem;
+    padding: 20px 30px;
+    border-radius: 60px;
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+    border: none;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    width: 100%;
+}
+
+#start-game-btn-landing:hover, #rules-btn-landing:hover {
+    transform: scale(1.02);
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    box-shadow: 0 12px 20px rgba(0,0,0,0.3);
+}
+
+/* 通用返回按鈕 */
+.back-btn {
+    background: #7f8c8d;
+    color: white;
+    border: none;
+    border-radius: 30px;
+    padding: 8px 20px;
+    font-size: 1rem;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.back-btn:hover {
+    background: #95a5a6;
+    transform: scale(1.02);
+}
+
+/* 確保所有頁面容器高度一致，避免移位 */
+#game-start-page, #rules-page {
+    min-height: 60vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+}
+
+.play-again-btn {
+    background: #f39c12;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 50px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: 0.2s;
+}
+.play-again-btn:hover {
+    background: #e67e22;
+    transform: scale(1.02);
 }
