@@ -373,6 +373,20 @@ function updateWaitingRoom(data) {
     }
 }
 
+// 更新裁判的上一個行動顯示
+function updateLastActionDisplay(data) {
+    const lastAction = data.lastAction;
+    if (lastAction && lastAction.player && lastAction.edgeId) {
+        const team = getTeamInfo(lastAction.player, 'party');
+        const displayText = `${team.name}：${lastAction.edgeId}：${lastAction.cost}`;
+        const lastActionSpan = document.getElementById('last-action-text');
+        if (lastActionSpan) lastActionSpan.textContent = displayText;
+    } else {
+        const lastActionSpan = document.getElementById('last-action-text');
+        if (lastActionSpan) lastActionSpan.textContent = '無';
+    }
+}
+
 function updateGameUI(data) {
     const gamePhase = data.gamePhase;
     const turn = data.turn;
@@ -392,13 +406,21 @@ function updateGameUI(data) {
 
     const skillArea = document.getElementById('skill-area');
     const refereeActions = document.getElementById('referee-actions');
+    const lastActionDiv = document.getElementById('last-action-display');
+    const edgeSelectionDiv = document.getElementById('edge-selection');
+
     if (skillArea && refereeActions) {
         if (gameMode === 'party' && playerId === 'player1') {
             skillArea.style.display = 'none';
             refereeActions.style.display = 'block';
+            if (lastActionDiv) lastActionDiv.style.display = 'block';
+            if (edgeSelectionDiv) edgeSelectionDiv.style.display = 'none';
+            updateLastActionDisplay(data);
         } else {
             skillArea.style.display = 'flex';
             refereeActions.style.display = 'none';
+            if (lastActionDiv) lastActionDiv.style.display = 'none';
+            if (edgeSelectionDiv) edgeSelectionDiv.style.display = isPlayer ? 'block' : 'none';
         }
     }
 
@@ -460,7 +482,6 @@ function updateGameUI(data) {
     }
 
     const startSelection = document.getElementById('start-point-selection');
-    const edgeSelection = document.getElementById('edge-selection');
     const weakSection = document.getElementById('weak-player-section');
 
     if (gamePhase === 'start') {
@@ -477,23 +498,23 @@ function updateGameUI(data) {
             });
         }
         if (startSelection) startSelection.style.display = isPlayer && !players[playerId]?.start ? 'block' : 'none';
-        if (edgeSelection) edgeSelection.style.display = 'none';
+        if (edgeSelectionDiv) edgeSelectionDiv.style.display = 'none';
         if (weakSection) weakSection.style.display = 'none';
         document.getElementById('game-status').innerHTML = '請選擇你的起點 (A~M' + (mapVersion === 'large' ? ', N, O' : '') + ')';
     } else if (gamePhase === 'playing') {
         if (startSelection) startSelection.style.display = 'none';
-        if (edgeSelection) edgeSelection.style.display = isPlayer ? 'block' : 'none';
+        if (edgeSelectionDiv) edgeSelectionDiv.style.display = isPlayer ? 'block' : 'none';
         if (weakSection) weakSection.style.display = 'none';
         if (isPlayer) generateEdgeButtons(data, allEdges, nodePos);
         document.getElementById('game-status').innerHTML = '';
     } else if (gamePhase === 'weak_claim') {
         if (startSelection) startSelection.style.display = 'none';
-        if (edgeSelection) edgeSelection.style.display = 'none';
+        if (edgeSelectionDiv) edgeSelectionDiv.style.display = 'none';
         if (weakSection) weakSection.style.display = isPlayer ? 'block' : 'none';
         if (isPlayer) generateClaimButtons(data, allEdges, nodePos);
     } else {
         if (startSelection) startSelection.style.display = 'none';
-        if (edgeSelection) edgeSelection.style.display = 'none';
+        if (edgeSelectionDiv) edgeSelectionDiv.style.display = 'none';
         if (weakSection) weakSection.style.display = 'none';
     }
 
@@ -574,7 +595,7 @@ function generateClaimButtons(data, allEdges, nodePos) {
     if (info) info.textContent = '點擊申請佔領該邊（派對模式需手動輸入分數）';
 }
 
-// 修正後的 drawMap：派對模式裁判顯示成本數字在邊中央（疊在邊上）
+// 修改後的 drawMap：派對模式裁判顯示成本數字在邊中央（疊在邊上），所有玩家起點顯示
 function drawMap(edgesOwner, players, gameMode, nodePos, allEdges, edgesScore) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
@@ -602,16 +623,16 @@ function drawMap(edgesOwner, players, gameMode, nodePos, allEdges, edgesScore) {
         
         // 繪製邊上的文字
         if (isPartyJudge) {
-            // 派對模式裁判：只顯示已被佔領邊的成本，疊在邊中央（可微調位置）
+            // 派對模式裁判：只顯示已被佔領邊的成本，疊在邊中央
             if (edgesScore && edgesScore[edge.id] !== undefined) {
                 let midX = (u.x + v.x) / 2;
                 let midY = (u.y + v.y) / 2;
                 
-                // 特定邊的偏移調整
+                // 特定邊的偏移調整（避免重疊）
                 if (edge.id === 'CD') {
-                    midX -= 15;   // 向左移動一個身位
+                    midX -= 15;
                 } else if (edge.id === 'BN') {
-                    midY += 50;   // 向下移動兩個身位
+                    midY += 50;
                 }
                 
                 // 半透明背景圓
@@ -653,7 +674,7 @@ function drawMap(edgesOwner, players, gameMode, nodePos, allEdges, edgesScore) {
         ctx.fillText(node, pos.x - 8, pos.y + 6);
     }
     
-    // 標記起點
+    // 標記所有玩家的起點（不同顏色虛線圓圈）
     ALL_PLAYERS.forEach(p => {
         const start = players[p]?.start;
         if (start && nodePos[start]) {
@@ -743,7 +764,7 @@ function showResult(data) {
                 if (edge.id === 'CD') {
                     midX -= 15;
                 } else if (edge.id === 'BN') {
-                    midY += 50;  // 根據您調整的數值
+                    midY += 50;
                 }
                 
                 // 半透明背景圓
@@ -989,6 +1010,13 @@ document.getElementById('edge-buttons-container')?.addEventListener('click', (e)
             updates[`edgesScore/${edgeId}`] = score;
             updates[`players/${playerId}/edges/${edgeId}`] = true;
             updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
+            // 記錄最後一個行動（供裁判顯示）
+            updates.lastAction = {
+                player: playerId,
+                edgeId: edgeId,
+                cost: score,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
             if (data.extraTurn && data.turn === playerId) {
                 updates.extraTurn = null;
                 updates.extraDiceCount = null;
@@ -1073,6 +1101,13 @@ document.getElementById('claim-buttons-container')?.addEventListener('click', (e
         updates.weakState = null;
         updates.gamePhase = 'playing';
         updates.lastActive = firebase.database.ServerValue.TIMESTAMP;
+        // 記錄最後一個行動
+        updates.lastAction = {
+            player: playerId,
+            edgeId: edgeId,
+            cost: score,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        };
         updates[`roundClaimedEdges/${edgeId}`] = true;
         const history = saveHistory(data);
         updates.history = history;
