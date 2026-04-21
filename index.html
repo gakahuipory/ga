@@ -11,7 +11,13 @@
 </head>
 <body>
     <div id="game-container">
-        <h1>圖途論戰 Graph Rivals</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h1 style="margin: 0;">圖途論戰 Graph Rivals</h1>
+            <div>
+                <button id="singleplayer-btn" style="background: #f39c12; border: none; border-radius: 30px; padding: 8px 16px; font-weight: bold; cursor: pointer; margin-right: 10px;">🎲 單機模式</button>
+                <button id="rules-btn" style="background: #3498db; border: none; border-radius: 30px; padding: 8px 16px; font-weight: bold; cursor: pointer;">📖 遊戲規則</button>
+            </div>
+        </div>
         <div id="login-section">
             <!-- 已移除副標題 -->
             <div>
@@ -51,10 +57,6 @@
                         <option value="normal">一般模式</option>
                         <option value="party">派對模式</option>
                     </select>
-                </div>
-                <!-- 規則按鈕（所有人都可見） -->
-                <div style="margin-top: 15px;">
-                    <button id="rules-btn-waiting" class="rules-btn">📖 遊戲規則</button>
                 </div>
             </div>
             <p id="waiting-hint">等待房主開始遊戲⋯</p>
@@ -131,7 +133,7 @@
 
                 <!-- 裁判顯示上一個行動的區域 -->
                 <div id="last-action-display" style="display: none; margin: 15px 0; padding: 12px; background: #2c3e50; color: white; border-radius: 20px; text-align: center; font-size: 1.1rem;">
-                    上一個行動：<span id="last-action-text">無</span>
+                    ⏪ 上一個行動：<span id="last-action-text">無</span>
                 </div>
 
                 <div id="game-status"></div>
@@ -164,17 +166,23 @@
     <!-- 自訂 JavaScript -->
     <script src="firebase-config.js"></script>
     <script src="script.js"></script>
-    <!-- 連線檢測與規則按鈕事件 -->
+    <!-- 按鈕事件（不影響原有遊戲邏輯） -->
     <script>
-        // 等待房間規則按鈕（新開視窗）
-        const rulesBtnWaiting = document.getElementById('rules-btn-waiting');
-        if (rulesBtnWaiting) {
-            rulesBtnWaiting.addEventListener('click', () => {
+        // 單機模式按鈕
+        const singleplayerBtn = document.getElementById('singleplayer-btn');
+        if (singleplayerBtn) {
+            singleplayerBtn.addEventListener('click', () => {
+                window.location.href = 'singleplayer.html';
+            });
+        }
+        // 遊戲規則按鈕（新視窗）
+        const rulesBtn = document.getElementById('rules-btn');
+        if (rulesBtn) {
+            rulesBtn.addEventListener('click', () => {
                 window.open('rules.html', '_blank', 'width=800,height=600,toolbar=no,menubar=no,scrollbars=yes');
             });
         }
-
-        // 原有的 Firebase 連線檢測
+        // 連線檢測（保留）
         setTimeout(() => {
             try {
                 if (typeof firebase === 'undefined') {
