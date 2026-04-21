@@ -67,6 +67,34 @@
             margin: 15px 0;
             border-left: 4px solid #e74c3c;
         }
+        .map-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .map-card {
+            flex: 1;
+            min-width: 250px;
+            background: #ecf0f1;
+            border-radius: 20px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .map-card img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 16px;
+            background: white;
+            padding: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .map-card h4 {
+            margin: 10px 0 5px;
+            color: #2c3e50;
+        }
         .close-btn {
             display: block;
             width: 140px;
@@ -97,7 +125,20 @@
             <p>遊戲提供三種模式：<strong>一般模式</strong>（四人連線、自動擲骰）、<strong>派對模式</strong>（四人連線＋裁判、手動輸入骰子）、<strong>單機模式</strong>（熱座，同一裝置上四人輪流遊玩）。</p>
 
             <h2>二、地圖結構</h2>
-            <p>標準版地圖包含 13 個節點（A～M）與 28 條邊。派對模式下可選擇加大版地圖（新增 N、O 節點，共 15 節點、36 條邊）。</p>
+            <div class="map-container">
+                <div class="map-card">
+                    <h4>📌 標準版地圖</h4>
+                    <img src="map_small.jpg" alt="標準版地圖" onerror="this.style.display='none'; this.nextSibling?.style.display='block';">
+                    <p style="color: #999; font-size: 0.8rem;">（圖片載入失敗，請確認 map_small.jpg 存在）</p>
+                    <p>13 個節點（A～M），28 條邊</p>
+                </div>
+                <div class="map-card">
+                    <h4>📌 加大版地圖</h4>
+                    <img src="map_big.jpg" alt="加大版地圖" onerror="this.style.display='none'; this.nextSibling?.style.display='block';">
+                    <p style="color: #999; font-size: 0.8rem;">（圖片載入失敗，請確認 map_big.jpg 存在）</p>
+                    <p>15 個節點（A～M 加 N、O），36 條邊</p>
+                </div>
+            </div>
 
             <h2>三、遊戲準備</h2>
             <ul>
@@ -179,7 +220,7 @@
             <ol>
                 <li><strong>佔領階段</strong>：輪流佔邊，累積骰子成本（僅為參考值）。</li>
                 <li><strong>結算階段</strong>：玩家在現實生活中（或紙上）對自己的佔邊圖形求解中國郵遞員問題，得到最優路徑的總成本。</li>
-                <li><strong>比較成本</strong>：總成本最低者獲勝。</li>
+                <li><strong>比較成本</strong>：<span class="highlight">總成本最低者獲勝</span>；若同分，則並列冠軍（每位玩家佔領的邊數相同，不再比較邊數）。</li>
             </ol>
             <p style="margin-top: 20px; text-align: center;">🎉 祝各位玩家運籌帷幄，畫出屬於自己的最優回路！ 🎉</p>
         </div>
